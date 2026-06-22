@@ -1,7 +1,7 @@
 %Imports EEG event data ("Latency", "Type")
 
 [file,path] = uigetfile('*.csv')
-eventtable = readtable(fullfile(path,file));
+eventTable = readtable(fullfile(path,file));
 
 EEG.event = struct('type',{},'latency',{});
 
@@ -11,4 +11,4 @@ for k = 1:height(eventTable)
 end
 
 EEG = eeg_checkset(EEG,'eventconsistency');
-eeglab = redraw
+eeglab redraw
