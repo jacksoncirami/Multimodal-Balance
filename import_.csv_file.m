@@ -1,6 +1,5 @@
 %Imports .csv file to MATLAB and transposes data
 
-
 [file,path] = uigetfile('.csv');
 
 data = readmatrix(fullfile(path,file));
