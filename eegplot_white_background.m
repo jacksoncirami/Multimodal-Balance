@@ -1,4 +1,4 @@
-% Makes the current EEGLAB/MATLAB plot easier to read
+%Makes the current EEGLAB/MATLAB plot easier to read
 
 fig = gcf;
 set(fig,'Color','w')
