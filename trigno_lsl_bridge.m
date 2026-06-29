@@ -26,7 +26,7 @@ try
     delsys_client = tcpclient(delsys_ip, emg_port, 'Timeout', 10, 'ByteOrder', 'little-endian');
     fprintf('Connected to Delsys hardware successfully!\n');
 catch ME
-    error('Connection refused. Ensure Trigno Discover is open, displaying moving live waves, and check firewall. Error: %s', ME.message);
+    error('Connection refused. Ensure Trigno Control Utility is open with 4 active sensors. Error: %s', ME.message);
 end
 
 %% 3. Setup the LSL Network Outlet
@@ -48,7 +48,7 @@ uicontrol('Style', 'text', 'String', 'Press ANY KEY in this window to stop strea
           'Position', [20 30 260 40], 'FontSize', 10);
 
 bytes_per_sample = 4 * num_channels; % 4 bytes per float channel
-disp('Streaming Delsys data... Keep Trigno Discover live preview running.');
+disp('Streaming Delsys data... Keep Trigno Control Utility window open.');
 
 try
     while ~strcmp(get(stop_fig, 'Tag'), 'stop')
