@@ -1,6 +1,9 @@
 %% 1. Configuration & Setup
 clear; clc;
 
+% UPDATE THIS: Path to your pre-compiled Win64 LSL folder
+addpath(genpath('C:\Users\hpuminds\Downloads\liblsl-Matlab-1.14.0-Win_amd64_R2020b\liblsl-Matlab'));
+
 % Default Trigno network parameters
 delsys_ip = '127.0.0.1'; % Localhost loopback
 cmd_port = 50040;        % Delsys Command Communication Port
