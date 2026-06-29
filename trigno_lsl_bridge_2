@@ -2,10 +2,10 @@
 clear; clc;
 
 % UPDATE THIS: Path to your pre-compiled Win64 LSL folder
-addpath(genpath('C:\Users\YOUR_USERNAME\Downloads\liblsl-Matlab-Win64')); 
+addpath(genpath('C:\Users\hpuminds\Downloads\liblsl-Matlab-1.14.0-Win_amd64_R2020b\liblsl-Matlab'));
 
 % UPDATE THIS: Path to your Trigno Discover directory where the DLL lives
-delsys_dll_path = 'C:\Program Files\Delsys, Inc\Trigno Discover\DelsysAPI.dll'; 
+delsys_dll_path = 'C:\Program Files (x86)\Delsys, Inc\Trigno Discover\DelsysAPI.dll';
 
 fprintf('Loading Delsys .NET Assembly directly into MATLAB...\n');
 try
