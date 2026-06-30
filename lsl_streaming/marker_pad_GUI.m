@@ -36,7 +36,7 @@ fig = figure('Name', 'LSL Marker Dashboard', ...
 
 set(fig, 'Position', [100, 100, winWidth, winHeight]);
 
-% High-contrast gray buttons with solid black text
+% Gray buttons with solid black text
 gray_color = [0.92, 0.92, 0.92];
 text_color = [0, 0, 0];
 
@@ -119,7 +119,7 @@ b10 = uicontrol('Parent', fig, 'Style', 'pushbutton', 'String', 'Step Initiation
                 'Callback', @(~,~) send_live_marker(outlet, 'Step Initiation'));
 set(b10, 'Position', [startX, startY - 9*spacing, btnWidth, btnHeight]);
 
-%% 5. HELPER FUNCTION TO PUSH SAMPLES INTO THE RECORDING STREAM
+%% 5. Helper Function to Push Samples Into the Recording Stream
 function send_live_marker(outlet, marker_text)
     % Transmits the marker instantly over the network to LabRecorder
     outlet.push_sample({marker_text});
