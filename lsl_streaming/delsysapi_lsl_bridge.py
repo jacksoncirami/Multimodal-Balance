@@ -1,3 +1,5 @@
+# Open powershell and change working directory to Delsys python folder; cd "C:\Users\hpuminds\Downloads\Example-Applications-main\Python"
+
 from pathlib import Path
 import time
 import numpy as np
