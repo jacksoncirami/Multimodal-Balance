@@ -1,0 +1,17 @@
+%% Fix old Mobilab strsplit path issue
+
+badFolder = 'C:\Users\hpuminds\Downloads\eeglab2026.0\plugins\Mobilab20210924';
+
+if isfolder(badFolder)
+    rmpath(genpath(badFolder));
+    fprintf('Removed Mobilab folder from MATLAB path:\n%s\n', badFolder);
+else
+    warning('Mobilab folder not found at the expected location.');
+end
+
+savepath
+clear functions
+rehash toolboxcache
+
+fprintf('\nMATLAB is now using this strsplit:\n');
+which strsplit -all
