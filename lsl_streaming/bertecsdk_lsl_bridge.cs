@@ -6,17 +6,28 @@ namespace BertecExampleNET
 {
     class SimpleFZReaderExample
     {
+        // ============================================================
+        // Bertec SDK variables
+        // ============================================================
         BertecDeviceNET.BertecDevice theHandle = null;
 
         bool devicesAreaReady = false;
         bool demoImmediateDeviceDataHandler = false;
 
+        // ============================================================
+        // Bertec channel info
+        // ============================================================
         string[] forceChannelNames = null;
         int forceChannelCount = 0;
 
+        // ============================================================
+        // LSL variables
+        // ============================================================
         LSL.StreamOutlet lslOutlet = null;
         float[] lslSample = null;
 
+        // Used only to slow down console printing.
+        // The LSL stream still sends every sample.
         int printCounter = 0;
 
         static void Main(string[] args)
@@ -29,7 +40,7 @@ namespace BertecExampleNET
         {
             Console.WriteLine("=================================================");
             Console.WriteLine("Bertec Force Plate to LSL Bridge");
-            Console.WriteLine("Streaming whatever Bertec forceData channels are available.");
+            Console.WriteLine("Streaming all Bertec forceData channels.");
             Console.WriteLine("LSL stream name: BertecForcePlate");
             Console.WriteLine("LSL stream type: Force");
             Console.WriteLine("Press ESC or Space to stop.");
@@ -47,7 +58,7 @@ namespace BertecExampleNET
 
             while ((c = Console.ReadKey(true).KeyChar) != 3)
             {
-                if (c == 27 || c == 32)
+                if (c == 27 || c == 32) // ESC or Space
                     break;
 
                 System.Threading.Thread.Sleep(15);
@@ -80,6 +91,7 @@ namespace BertecExampleNET
                 return -1;
             }
 
+            // Connect Bertec SDK event handlers
             theHandle.OnStatus += StatusHandler;
 
             if (demoImmediateDeviceDataHandler)
@@ -87,6 +99,7 @@ namespace BertecExampleNET
             else
                 theHandle.OnDataStream += DataHandler;
 
+            // Start looking for devices
             theHandle.Start();
 
             return 0;
@@ -115,12 +128,13 @@ namespace BertecExampleNET
 
         void SetupForceChannelsAndLSL()
         {
+            // Get channel names directly from the Bertec SDK
             forceChannelNames = theHandle.DeviceChannelNames(0);
             forceChannelCount = forceChannelNames.Length;
 
             if (forceChannelCount <= 0)
             {
-                Console.WriteLine("WARNING: No Bertec forceData channels found.");
+                Console.WriteLine("WARNING: No Bertec force-data channels found.");
                 return;
             }
 
@@ -131,6 +145,7 @@ namespace BertecExampleNET
                 Console.WriteLine("Channel {0}: {1}", i, forceChannelNames[i]);
             }
 
+            // Create the LSL stream using the full Bertec forceData channel count
             LSL.StreamInfo info = new LSL.StreamInfo(
                 "BertecForcePlate",
                 "Force",
@@ -140,6 +155,7 @@ namespace BertecExampleNET
                 "bertec_force_plate_all_channels_001"
             );
 
+            // Add channel metadata to the LSL stream
             LSL.XMLElement channels = info.desc().append_child("channels");
 
             for (int i = 0; i < forceChannelCount; i++)
@@ -173,6 +189,9 @@ namespace BertecExampleNET
                 return "Nm";
 
             if (upper.StartsWith("COP"))
+                return "unknown";
+
+            if (upper.Contains("AUX") || upper.Contains("SYNC"))
                 return "unknown";
 
             return "unknown";
@@ -277,6 +296,7 @@ namespace BertecExampleNET
 
             for (int deviceNumber = 0; deviceNumber < dataFrames.Length; ++deviceNumber)
             {
+                // This bridge currently uses the first Bertec device only.
                 if (deviceNumber != 0)
                     continue;
 
@@ -287,18 +307,22 @@ namespace BertecExampleNET
 
                 int channelsToCopy = Math.Min(forceChannelCount, deviceData.forceData.Length);
 
+                // Copy all Bertec forceData channels into the LSL sample
                 for (int i = 0; i < channelsToCopy; i++)
                 {
                     lslSample[i] = (float)deviceData.forceData[i];
                 }
 
+                // If the SDK gives fewer data values than channel labels, pad the rest with 0
                 for (int i = channelsToCopy; i < forceChannelCount; i++)
                 {
                     lslSample[i] = 0.0f;
                 }
 
+                // Push the full sample to LSL
                 lslOutlet.push_sample(lslSample);
 
+                // Print only occasionally so the console does not slow down the stream
                 printCounter++;
 
                 if (printCounter >= 100)
