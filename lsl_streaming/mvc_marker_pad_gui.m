@@ -15,7 +15,7 @@ catch
 end
 
 %% 2. Register the Stream With the Network
-% Creates a separate MVC marker stream that LabRecorder can record.
+% Creates a stream named 'MVCMarkers' of type 'Markers' that LabRecorder looks for
 info = lsl_streaminfo(lib, 'MVCMarkers', 'Markers', 1, 0, 'cf_string', 'mvc_marker_pad_001');
 outlet = lsl_outlet(info);
 
