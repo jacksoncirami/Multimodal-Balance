@@ -38,13 +38,24 @@ namespace BertecExampleNET
         float[] lslSample = null;
 
         // ============================================================
+        // Software tare / baseline correction
+        //
+        // The Bertec SDK may output a large baseline offset.
+        // This code averages the first BASELINE_SAMPLE_COUNT samples
+        // while the plate is empty, then subtracts that baseline from
+        // all future force and moment values.
+        // ============================================================
+        const int BASELINE_SAMPLE_COUNT = 2000; // ~2 seconds at 1000 Hz
+        const double MIN_FORCE_FOR_COP = 20.0; // N threshold for valid COP
+
+        double[] baselineSums = new double[9];
+        double[] baselineValues = new double[9];
+
+        int baselineSamplesCollected = 0;
+        bool baselineComplete = false;
+
+        // ============================================================
         // Output channels sent to LabRecorder
-        //
-        // Raw Bertec SDK channels:
-        // FZR, MXR, MYR, FZL, MXL, MYL, FZ, MX, MY
-        //
-        // Computed channels:
-        // COPXR, COPYR, COPXL, COPYL, COPX, COPY
         // ============================================================
         readonly string[] outputChannelNames =
         {
@@ -68,9 +79,14 @@ namespace BertecExampleNET
         {
             Console.WriteLine("=================================================");
             Console.WriteLine("Bertec Force Plate to LSL Bridge");
-            Console.WriteLine("Streams raw force/moment channels + computed COP.");
+            Console.WriteLine("Streams baseline-corrected force/moment + COP.");
             Console.WriteLine("LSL stream name: BertecForcePlate");
             Console.WriteLine("LSL stream type: Force");
+            Console.WriteLine("");
+            Console.WriteLine("IMPORTANT:");
+            Console.WriteLine("Keep the force plate EMPTY during startup.");
+            Console.WriteLine("The first ~2 seconds are used for software tare.");
+            Console.WriteLine("");
             Console.WriteLine("Press ESC or Space to stop.");
             Console.WriteLine("=================================================\n");
 
@@ -102,6 +118,8 @@ namespace BertecExampleNET
 
             lslOutlet = null;
             lslSample = null;
+
+            ResetBaseline();
 
             try
             {
@@ -152,6 +170,19 @@ namespace BertecExampleNET
             Console.WriteLine("\nBertec-to-LSL bridge closed.");
         }
 
+        void ResetBaseline()
+        {
+            for (int i = 0; i < baselineSums.Length; i++)
+            {
+                baselineSums[i] = 0.0;
+                baselineValues[i] = 0.0;
+            }
+
+            baselineSamplesCollected = 0;
+            baselineComplete = false;
+            printCounter = 0;
+        }
+
         bool SetupChannelsAndLSL()
         {
             sdkChannelNames = theHandle.DeviceChannelNames(0);
@@ -197,7 +228,7 @@ namespace BertecExampleNET
                 outputChannelNames.Length,
                 1000.0,
                 LSL.channel_format_t.cf_float32,
-                "bertec_force_plate_raw_plus_cop_001"
+                "bertec_force_plate_tared_raw_plus_cop_001"
             );
 
             LSL.XMLElement channels = info.desc().append_child("channels");
@@ -227,7 +258,10 @@ namespace BertecExampleNET
                 Console.WriteLine("LSL channel {0}: {1}", i, outputChannelNames[i]);
             }
 
-            Console.WriteLine("\nOpen LabRecorder and select: BertecForcePlate\n");
+            Console.WriteLine("\nKeep plate empty. Collecting software tare baseline...");
+            Console.WriteLine("Do not step on the plate yet.\n");
+
+            ResetBaseline();
 
             return true;
         }
@@ -254,7 +288,7 @@ namespace BertecExampleNET
                 return "Nm";
 
             if (upper.StartsWith("COP"))
-                return "computed";
+                return "m";
 
             return "unknown";
         }
@@ -368,6 +402,14 @@ namespace BertecExampleNET
                 if (deviceData.forceData == null || deviceData.forceData.Length <= 0)
                     return;
 
+                // First collect empty-plate baseline. No samples are pushed to LSL
+                // until the baseline is complete.
+                if (!baselineComplete)
+                {
+                    AccumulateBaseline(deviceData.forceData);
+                    return;
+                }
+
                 BuildOutputSample(deviceData.forceData);
 
                 lslOutlet.push_sample(lslSample);
@@ -379,7 +421,7 @@ namespace BertecExampleNET
                     printCounter = 0;
 
                     Console.Write("\rTimestamp: {0}  ", deviceData.timestamp);
-                    Console.Write("FZ: {0}  COPX: {1}  COPY: {2}      ",
+                    Console.Write("Corrected FZ: {0} N  COPX: {1} m  COPY: {2} m      ",
                         lslSample[6], lslSample[13], lslSample[14]);
 
                     Console.Out.Flush();
@@ -401,24 +443,78 @@ namespace BertecExampleNET
             if (deviceData.forceData == null || deviceData.forceData.Length <= 0)
                 return;
 
+            if (!baselineComplete)
+            {
+                AccumulateBaseline(deviceData.forceData);
+                return;
+            }
+
             BuildOutputSample(deviceData.forceData);
 
             lslOutlet.push_sample(lslSample);
         }
 
+        void AccumulateBaseline(float[] forceData)
+        {
+            baselineSums[0] += forceData[idxFZR];
+            baselineSums[1] += forceData[idxMXR];
+            baselineSums[2] += forceData[idxMYR];
+
+            baselineSums[3] += forceData[idxFZL];
+            baselineSums[4] += forceData[idxMXL];
+            baselineSums[5] += forceData[idxMYL];
+
+            baselineSums[6] += forceData[idxFZ];
+            baselineSums[7] += forceData[idxMX];
+            baselineSums[8] += forceData[idxMY];
+
+            baselineSamplesCollected++;
+
+            if (baselineSamplesCollected % 100 == 0)
+            {
+                Console.Write("\rCollecting baseline: {0}/{1} samples",
+                    baselineSamplesCollected, BASELINE_SAMPLE_COUNT);
+                Console.Out.Flush();
+            }
+
+            if (baselineSamplesCollected >= BASELINE_SAMPLE_COUNT)
+            {
+                for (int i = 0; i < baselineValues.Length; i++)
+                {
+                    baselineValues[i] = baselineSums[i] / baselineSamplesCollected;
+                }
+
+                baselineComplete = true;
+
+                Console.WriteLine("\n\nSoftware tare complete.");
+                Console.WriteLine("Baseline values subtracted from future samples:");
+                Console.WriteLine("FZR: {0}", baselineValues[0]);
+                Console.WriteLine("MXR: {0}", baselineValues[1]);
+                Console.WriteLine("MYR: {0}", baselineValues[2]);
+                Console.WriteLine("FZL: {0}", baselineValues[3]);
+                Console.WriteLine("MXL: {0}", baselineValues[4]);
+                Console.WriteLine("MYL: {0}", baselineValues[5]);
+                Console.WriteLine("FZ:  {0}", baselineValues[6]);
+                Console.WriteLine("MX:  {0}", baselineValues[7]);
+                Console.WriteLine("MY:  {0}", baselineValues[8]);
+                Console.WriteLine("\nYou may now step on the plate and record in LabRecorder.\n");
+            }
+        }
+
         void BuildOutputSample(float[] forceData)
         {
-            double FZR = forceData[idxFZR];
-            double MXR = forceData[idxMXR];
-            double MYR = forceData[idxMYR];
+            // Subtract empty-plate baseline from raw force/moment channels.
+            double FZR = forceData[idxFZR] - baselineValues[0];
+            double MXR = forceData[idxMXR] - baselineValues[1];
+            double MYR = forceData[idxMYR] - baselineValues[2];
 
-            double FZL = forceData[idxFZL];
-            double MXL = forceData[idxMXL];
-            double MYL = forceData[idxMYL];
+            double FZL = forceData[idxFZL] - baselineValues[3];
+            double MXL = forceData[idxMXL] - baselineValues[4];
+            double MYL = forceData[idxMYL] - baselineValues[5];
 
-            double FZ = forceData[idxFZ];
-            double MX = forceData[idxMX];
-            double MY = forceData[idxMY];
+            double FZ = forceData[idxFZ] - baselineValues[6];
+            double MX = forceData[idxMX] - baselineValues[7];
+            double MY = forceData[idxMY] - baselineValues[8];
 
             double COPXR = ComputeCopX(MYR, FZR);
             double COPYR = ComputeCopY(MXR, FZR);
@@ -453,23 +549,23 @@ namespace BertecExampleNET
 
         double ComputeCopX(double momentY, double forceZ)
         {
-            if (Math.Abs(forceZ) < 1e-6)
+            if (Math.Abs(forceZ) < MIN_FORCE_FOR_COP)
                 return double.NaN;
 
             // Common force-plate convention:
             // COPX = -MY / FZ
-            // Verify sign against Bertec CSV export.
+            // Verify sign against Bertec CSV export if needed.
             return -momentY / forceZ;
         }
 
         double ComputeCopY(double momentX, double forceZ)
         {
-            if (Math.Abs(forceZ) < 1e-6)
+            if (Math.Abs(forceZ) < MIN_FORCE_FOR_COP)
                 return double.NaN;
 
             // Common force-plate convention:
             // COPY = MX / FZ
-            // Verify sign against Bertec CSV export.
+            // Verify sign against Bertec CSV export if needed.
             return momentX / forceZ;
         }
     }
