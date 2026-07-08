@@ -11,11 +11,30 @@ namespace BertecExampleNET
         bool devicesAreaReady = false;
         bool demoImmediateDeviceDataHandler = false;
 
-        string[] forceChannelNames = null;
-        int forceChannelCount = 0;
+        string[] sdkChannelNames = null;
+
+        int idxFZR = -1;
+        int idxMXR = -1;
+        int idxMYR = -1;
+        int idxFZL = -1;
+        int idxMXL = -1;
+        int idxMYL = -1;
+        int idxFZ  = -1;
+        int idxMX  = -1;
+        int idxMY  = -1;
 
         LSL.StreamOutlet lslOutlet = null;
         float[] lslSample = null;
+
+        readonly string[] outputChannelNames =
+        {
+            "FZR", "MXR", "MYR",
+            "FZL", "MXL", "MYL",
+            "FZ",  "MX",  "MY",
+            "COPXR", "COPYR",
+            "COPXL", "COPYL",
+            "COPX",  "COPY"
+        };
 
         int printCounter = 0;
 
@@ -29,9 +48,8 @@ namespace BertecExampleNET
         {
             Console.WriteLine("=================================================");
             Console.WriteLine("Bertec Force Plate to LSL Bridge");
-            Console.WriteLine("Streaming whatever Bertec forceData channels are available.");
+            Console.WriteLine("Streams raw force/moment channels + computed COP.");
             Console.WriteLine("LSL stream name: BertecForcePlate");
-            Console.WriteLine("LSL stream type: Force");
             Console.WriteLine("Press ESC or Space to stop.");
             Console.WriteLine("=================================================\n");
 
@@ -59,8 +77,7 @@ namespace BertecExampleNET
         int InitLibrary()
         {
             devicesAreaReady = false;
-            forceChannelNames = null;
-            forceChannelCount = 0;
+            sdkChannelNames = null;
             lslOutlet = null;
             lslSample = null;
 
@@ -71,12 +88,7 @@ namespace BertecExampleNET
             catch (System.Exception)
             {
                 Console.WriteLine("Unable to initialize the Bertec Device Library.");
-                Console.WriteLine("Possible causes:");
-                Console.WriteLine("- Missing FTD2XX driver");
-                Console.WriteLine("- Missing BertecDevice.dll");
-                Console.WriteLine("- Missing BertecDeviceNET.dll");
-                Console.WriteLine("- Missing ftd2xx.dll");
-                Console.WriteLine("- Wrong x86/x64 configuration");
+                Console.WriteLine("Possible missing FTD2XX install or missing DLLs.");
                 return -1;
             }
 
@@ -113,53 +125,94 @@ namespace BertecExampleNET
             Console.WriteLine("\nBertec-to-LSL bridge closed.");
         }
 
-        void SetupForceChannelsAndLSL()
+        bool SetupChannelsAndLSL()
         {
-            forceChannelNames = theHandle.DeviceChannelNames(0);
-            forceChannelCount = forceChannelNames.Length;
+            sdkChannelNames = theHandle.DeviceChannelNames(0);
 
-            if (forceChannelCount <= 0)
+            if (sdkChannelNames == null || sdkChannelNames.Length == 0)
             {
-                Console.WriteLine("WARNING: No Bertec forceData channels found.");
-                return;
+                Console.WriteLine("WARNING: No Bertec SDK channels found.");
+                return false;
             }
 
             Console.WriteLine("\nBertec SDK channels found:");
 
-            for (int i = 0; i < forceChannelCount; i++)
+            for (int i = 0; i < sdkChannelNames.Length; i++)
             {
-                Console.WriteLine("Channel {0}: {1}", i, forceChannelNames[i]);
+                Console.WriteLine("SDK channel {0}: {1}", i, sdkChannelNames[i]);
+            }
+
+            idxFZR = FindChannelIndex("FZR");
+            idxMXR = FindChannelIndex("MXR");
+            idxMYR = FindChannelIndex("MYR");
+
+            idxFZL = FindChannelIndex("FZL");
+            idxMXL = FindChannelIndex("MXL");
+            idxMYL = FindChannelIndex("MYL");
+
+            idxFZ = FindChannelIndex("FZ");
+            idxMX = FindChannelIndex("MX");
+            idxMY = FindChannelIndex("MY");
+
+            if (idxFZR < 0 || idxMXR < 0 || idxMYR < 0 ||
+                idxFZL < 0 || idxMXL < 0 || idxMYL < 0 ||
+                idxFZ  < 0 || idxMX  < 0 || idxMY  < 0)
+            {
+                Console.WriteLine("\nERROR: One or more required raw channels were not found.");
+                Console.WriteLine("Required: FZR, MXR, MYR, FZL, MXL, MYL, FZ, MX, MY");
+                return false;
             }
 
             LSL.StreamInfo info = new LSL.StreamInfo(
                 "BertecForcePlate",
                 "Force",
-                forceChannelCount,
+                outputChannelNames.Length,
                 1000.0,
                 LSL.channel_format_t.cf_float32,
-                "bertec_force_plate_all_channels_001"
+                "bertec_force_plate_raw_plus_cop_001"
             );
 
             LSL.XMLElement channels = info.desc().append_child("channels");
 
-            for (int i = 0; i < forceChannelCount; i++)
+            for (int i = 0; i < outputChannelNames.Length; i++)
             {
-                LSL.XMLElement ch = channels.append_child("channel");
+                string label = outputChannelNames[i];
 
-                ch.append_child_value("label", forceChannelNames[i]);
+                LSL.XMLElement ch = channels.append_child("channel");
+                ch.append_child_value("label", label);
                 ch.append_child_value("type", "ForcePlate");
-                ch.append_child_value("unit", GuessUnit(forceChannelNames[i]));
+                ch.append_child_value("unit", GuessUnit(label));
             }
 
-            lslSample = new float[forceChannelCount];
+            lslSample = new float[outputChannelNames.Length];
             lslOutlet = new LSL.StreamOutlet(info);
 
             Console.WriteLine("\nLSL stream created.");
             Console.WriteLine("Name: BertecForcePlate");
             Console.WriteLine("Type: Force");
             Console.WriteLine("Sampling rate: 1000 Hz");
-            Console.WriteLine("Channel count: {0}", forceChannelCount);
-            Console.WriteLine("Open LabRecorder and look for this stream.\n");
+            Console.WriteLine("Output channel count: {0}", outputChannelNames.Length);
+
+            Console.WriteLine("\nOutput channels:");
+            for (int i = 0; i < outputChannelNames.Length; i++)
+            {
+                Console.WriteLine("LSL channel {0}: {1}", i, outputChannelNames[i]);
+            }
+
+            Console.WriteLine("\nOpen LabRecorder and select: BertecForcePlate\n");
+
+            return true;
+        }
+
+        int FindChannelIndex(string targetName)
+        {
+            for (int i = 0; i < sdkChannelNames.Length; i++)
+            {
+                if (String.Equals(sdkChannelNames[i], targetName, StringComparison.OrdinalIgnoreCase))
+                    return i;
+            }
+
+            return -1;
         }
 
         string GuessUnit(string channelName)
@@ -173,7 +226,7 @@ namespace BertecExampleNET
                 return "Nm";
 
             if (upper.StartsWith("COP"))
-                return "unknown";
+                return "computed";
 
             return "unknown";
         }
@@ -185,15 +238,11 @@ namespace BertecExampleNET
                 case BertecDeviceNET.StatusErrors.LOOKING_FOR_DEVICES:
                     Console.WriteLine("\nSearching for connected Bertec devices...");
                     devicesAreaReady = false;
-                    forceChannelNames = null;
-                    forceChannelCount = 0;
                     break;
 
                 case BertecDeviceNET.StatusErrors.NO_DEVICES_FOUND:
                     Console.WriteLine("\nNo Bertec devices found.");
                     devicesAreaReady = false;
-                    forceChannelNames = null;
-                    forceChannelCount = 0;
                     break;
 
                 case BertecDeviceNET.StatusErrors.DEVICES_READY:
@@ -230,14 +279,20 @@ namespace BertecExampleNET
 
                         Console.WriteLine("Bertec data stream started.");
 
-                        SetupForceChannelsAndLSL();
+                        bool setupWorked = SetupChannelsAndLSL();
 
-                        theHandle.AutoZeroing = true;
+                        if (setupWorked)
+                        {
+                            theHandle.AutoZeroing = true;
+                            devicesAreaReady = true;
 
-                        devicesAreaReady = true;
-
-                        Console.WriteLine("\nBridge is running.");
-                        Console.WriteLine("Open LabRecorder and select: BertecForcePlate\n");
+                            Console.WriteLine("\nBridge is running.");
+                        }
+                        else
+                        {
+                            devicesAreaReady = false;
+                            Console.WriteLine("\nBridge setup failed.");
+                        }
                     });
 
                     break;
@@ -285,17 +340,7 @@ namespace BertecExampleNET
                 if (deviceData.forceData == null || deviceData.forceData.Length <= 0)
                     return;
 
-                int channelsToCopy = Math.Min(forceChannelCount, deviceData.forceData.Length);
-
-                for (int i = 0; i < channelsToCopy; i++)
-                {
-                    lslSample[i] = (float)deviceData.forceData[i];
-                }
-
-                for (int i = channelsToCopy; i < forceChannelCount; i++)
-                {
-                    lslSample[i] = 0.0f;
-                }
+                BuildOutputSample(deviceData.forceData);
 
                 lslOutlet.push_sample(lslSample);
 
@@ -306,13 +351,8 @@ namespace BertecExampleNET
                     printCounter = 0;
 
                     Console.Write("\rTimestamp: {0}  ", deviceData.timestamp);
-
-                    int channelsToPrint = Math.Min(6, channelsToCopy);
-
-                    for (int i = 0; i < channelsToPrint; i++)
-                    {
-                        Console.Write("{0}: {1}  ", forceChannelNames[i], lslSample[i]);
-                    }
+                    Console.Write("FZ: {0}  COPX: {1}  COPY: {2}      ",
+                        lslSample[6], lslSample[13], lslSample[14]);
 
                     Console.Out.Flush();
                 }
@@ -333,19 +373,74 @@ namespace BertecExampleNET
             if (deviceData.forceData == null || deviceData.forceData.Length <= 0)
                 return;
 
-            int channelsToCopy = Math.Min(forceChannelCount, deviceData.forceData.Length);
-
-            for (int i = 0; i < channelsToCopy; i++)
-            {
-                lslSample[i] = (float)deviceData.forceData[i];
-            }
-
-            for (int i = channelsToCopy; i < forceChannelCount; i++)
-            {
-                lslSample[i] = 0.0f;
-            }
+            BuildOutputSample(deviceData.forceData);
 
             lslOutlet.push_sample(lslSample);
+        }
+
+        void BuildOutputSample(double[] forceData)
+        {
+            double FZR = forceData[idxFZR];
+            double MXR = forceData[idxMXR];
+            double MYR = forceData[idxMYR];
+
+            double FZL = forceData[idxFZL];
+            double MXL = forceData[idxMXL];
+            double MYL = forceData[idxMYL];
+
+            double FZ = forceData[idxFZ];
+            double MX = forceData[idxMX];
+            double MY = forceData[idxMY];
+
+            double COPXR = ComputeCopX(MYR, FZR);
+            double COPYR = ComputeCopY(MXR, FZR);
+
+            double COPXL = ComputeCopX(MYL, FZL);
+            double COPYL = ComputeCopY(MXL, FZL);
+
+            double COPX = ComputeCopX(MY, FZ);
+            double COPY = ComputeCopY(MX, FZ);
+
+            lslSample[0]  = (float)FZR;
+            lslSample[1]  = (float)MXR;
+            lslSample[2]  = (float)MYR;
+
+            lslSample[3]  = (float)FZL;
+            lslSample[4]  = (float)MXL;
+            lslSample[5]  = (float)MYL;
+
+            lslSample[6]  = (float)FZ;
+            lslSample[7]  = (float)MX;
+            lslSample[8]  = (float)MY;
+
+            lslSample[9]  = (float)COPXR;
+            lslSample[10] = (float)COPYR;
+
+            lslSample[11] = (float)COPXL;
+            lslSample[12] = (float)COPYL;
+
+            lslSample[13] = (float)COPX;
+            lslSample[14] = (float)COPY;
+        }
+
+        double ComputeCopX(double momentY, double forceZ)
+        {
+            if (Math.Abs(forceZ) < 1e-6)
+                return double.NaN;
+
+            // Common force-plate convention: COPx = -My / Fz
+            // Verify sign against Bertec CSV export.
+            return -momentY / forceZ;
+        }
+
+        double ComputeCopY(double momentX, double forceZ)
+        {
+            if (Math.Abs(forceZ) < 1e-6)
+                return double.NaN;
+
+            // Common force-plate convention: COPy = Mx / Fz
+            // Verify sign against Bertec CSV export.
+            return momentX / forceZ;
         }
     }
 }
