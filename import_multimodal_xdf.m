@@ -43,8 +43,18 @@ for i = 1:length(streams)
     type = get_xdf_info(streams{i}, 'type');
     chanCount = get_xdf_info(streams{i}, 'channel_count');
     srate = get_xdf_info(streams{i}, 'nominal_srate');
-    nSamples = length(streams{i}.time_stamps);
-    dataSize = size(streams{i}.time_series);
+
+    if isfield(streams{i}, 'time_stamps')
+        nSamples = length(streams{i}.time_stamps);
+    else
+        nSamples = 0;
+    end
+
+    if isfield(streams{i}, 'time_series')
+        dataSize = size(streams{i}.time_series);
+    else
+        dataSize = [];
+    end
 
     fprintf('\nSTREAM %d\n', i);
     fprintf('Name: %s\n', name);
@@ -91,19 +101,19 @@ Marker_labels = markerStream.time_series;
 %% 8. Make Sure Required Streams Are Not Empty
 
 if isempty(EEG_time) || isempty(EEG_data)
-    error('The selected EEG stream is empty. Check the stream number.');
+    error('The selected EEG stream is empty. Check the EEG stream number.');
 end
 
 if isempty(EMG_time) || isempty(EMG_data)
-    error('The selected EMG stream is empty. Check the stream number.');
+    error('The selected EMG stream is empty. Check the EMG stream number.');
 end
 
 if isempty(Force_time) || isempty(Force_data)
-    error('The selected force plate stream is empty. Check the stream number.');
+    error('The selected force plate stream is empty. Check the force plate stream number.');
 end
 
 if isempty(Marker_time) || isempty(Marker_labels)
-    error('The selected marker stream is empty. Check the stream number.');
+    error('The selected marker stream is empty. Check the marker stream number.');
 end
 
 %% 9. Make All Data Channels x Samples
@@ -125,10 +135,13 @@ Marker_time_sec = Marker_time - t0;
 
 Marker_labels_clean = clean_marker_labels(Marker_labels);
 
+Marker_time_sec = Marker_time_sec(:);
+Marker_labels_clean = Marker_labels_clean(:);
+
 nMarkers = min(numel(Marker_time_sec), numel(Marker_labels_clean));
 
 MarkerTable = table( ...
-    Marker_time_sec(1:nMarkers)', ...
+    Marker_time_sec(1:nMarkers), ...
     Marker_labels_clean(1:nMarkers), ...
     'VariableNames', {'Time_seconds', 'Marker_Label'} ...
 );
@@ -139,7 +152,7 @@ MultiModal = struct();
 
 MultiModal.Meta.source_file = xdfFile;
 MultiModal.Meta.original_filename = file;
-MultiModal.Meta.import_date = datestr(now);
+MultiModal.Meta.import_datetime = string(datetime("now", "Format", "yyyy-MM-dd HH:mm:ss"));
 MultiModal.Meta.fileheader = fileheader;
 MultiModal.Meta.time_zero_note = ...
     'All time vectors are in seconds relative to the first stream start time.';
@@ -258,7 +271,17 @@ function labelsOut = clean_marker_labels(labelsIn)
     labelsOut = strings(numel(labelsIn), 1);
 
     for i = 1:numel(labelsIn)
-        label = labelsIn{i};
+        if iscell(labelsIn)
+            label = labelsIn{i};
+        elseif isstring(labelsIn)
+            label = labelsIn(i);
+        elseif ischar(labelsIn)
+            label = labelsIn;
+        elseif isnumeric(labelsIn)
+            label = labelsIn(i);
+        else
+            label = labelsIn(i);
+        end
 
         if iscell(label)
             label = label{1};
@@ -273,8 +296,6 @@ function labelsOut = clean_marker_labels(labelsIn)
 end
 
 function labels = get_xdf_channel_labels(stream)
-    labels = strings(0, 1);
-
     try
         desc = stream.info.desc;
 
@@ -297,10 +318,10 @@ function labels = get_xdf_channel_labels(stream)
         labels = strings(length(channelStruct), 1);
 
         for c = 1:length(channelStruct)
-            ch = channelStruct{c};
+            thisChannel = channelStruct{c};
 
-            if isfield(ch, 'label')
-                label = ch.label;
+            if isfield(thisChannel, 'label')
+                label = thisChannel.label;
 
                 if iscell(label)
                     label = label{1};
@@ -311,6 +332,7 @@ function labels = get_xdf_channel_labels(stream)
                 labels(c) = "Ch" + c;
             end
         end
+
     catch
         labels = strings(0, 1);
     end
