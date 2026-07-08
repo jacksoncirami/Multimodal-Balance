@@ -1,6 +1,9 @@
 % Purpose:
-% Load a LabRecorder .xdf file containing EEG, EMG, force plate,
-% regular task markers, and optional MVC markers.
+% Load a LabRecorder .xdf file containing EEG, EMG, force plate, and two LSL marker streams
+
+% Marker setup:
+% Marker Stream 1 is usually GuiMarkers.
+% Marker Stream 2 is usually MVCMarkers.
 
 clear; clc;
 
@@ -67,21 +70,25 @@ end
 %% 5. Enter Stream Numbers
 
 fprintf('\nEnter the stream numbers based on the list above.\n');
-fprintf('For MVC marker stream, type [] if MVC was not recorded in this XDF.\n\n');
+fprintf('For a marker stream that was not recorded, type [].\n');
+fprintf('At least one marker stream should be selected.\n\n');
 
 eegIdx = input('EEG stream number: ');
 emgIdx = input('EMG stream number: ');
 forceIdx = input('Force plate stream number: ');
-markerIdx = input('Regular marker stream number, usually GuiMarkers: ');
-mvcMarkerIdx = input('MVC marker stream number, usually MVCMarkers ([] if not recorded): ');
 
-check_stream_index(eegIdx, length(streams), 'EEG');
-check_stream_index(emgIdx, length(streams), 'EMG');
-check_stream_index(forceIdx, length(streams), 'Force plate');
-check_stream_index(markerIdx, length(streams), 'Regular marker');
+marker1Idx = input('Marker stream 1 number, usually GuiMarkers ([] if not recorded): ');
+marker2Idx = input('Marker stream 2 number, usually MVCMarkers ([] if not recorded): ');
 
-if ~isempty(mvcMarkerIdx)
-    check_stream_index(mvcMarkerIdx, length(streams), 'MVC marker');
+check_required_stream_index(eegIdx, length(streams), 'EEG');
+check_required_stream_index(emgIdx, length(streams), 'EMG');
+check_required_stream_index(forceIdx, length(streams), 'Force plate');
+
+check_optional_stream_index(marker1Idx, length(streams), 'Marker stream 1');
+check_optional_stream_index(marker2Idx, length(streams), 'Marker stream 2');
+
+if isempty(marker1Idx) && isempty(marker2Idx)
+    error('At least one marker stream must be selected.');
 end
 
 %% 6. Assign Streams
@@ -89,12 +96,17 @@ end
 eegStream = streams{eegIdx};
 emgStream = streams{emgIdx};
 forceStream = streams{forceIdx};
-markerStream = streams{markerIdx};
 
-if isempty(mvcMarkerIdx)
-    mvcMarkerStream = [];
+if isempty(marker1Idx)
+    marker1Stream = [];
 else
-    mvcMarkerStream = streams{mvcMarkerIdx};
+    marker1Stream = streams{marker1Idx};
+end
+
+if isempty(marker2Idx)
+    marker2Stream = [];
+else
+    marker2Stream = streams{marker2Idx};
 end
 
 %% 7. Extract Data And Timestamps
@@ -107,18 +119,10 @@ EEG_time_raw = eegStream.time_stamps;
 EMG_time_raw = emgStream.time_stamps;
 ForcePlate_time_raw = forceStream.time_stamps;
 
-Marker_time_raw = markerStream.time_stamps;
-Marker_labels_raw = markerStream.time_series;
+[Marker1_time_raw, Marker1_labels_raw, Marker1_source_name, Marker1_info] = extract_marker_stream(marker1Stream, "MarkerStream1");
+[Marker2_time_raw, Marker2_labels_raw, Marker2_source_name, Marker2_info] = extract_marker_stream(marker2Stream, "MarkerStream2");
 
-if isempty(mvcMarkerStream)
-    MVCMarker_time_raw = [];
-    MVCMarker_labels_raw = {};
-else
-    MVCMarker_time_raw = mvcMarkerStream.time_stamps;
-    MVCMarker_labels_raw = mvcMarkerStream.time_series;
-end
-
-%% 8. Make Sure Required Streams Are Not Empty
+%% 8. Make Sure Required Data Streams Are Not Empty
 
 if isempty(EEG_time_raw) || isempty(EEG_data)
     error('The selected EEG stream is empty. Check the EEG stream number.');
@@ -132,13 +136,15 @@ if isempty(ForcePlate_time_raw) || isempty(ForcePlate_data)
     error('The selected force plate stream is empty. Check the force plate stream number.');
 end
 
-if isempty(Marker_time_raw) || isempty(Marker_labels_raw)
-    error('The selected regular marker stream is empty. Check the regular marker stream number.');
+if ~isempty(marker1Idx)
+    if isempty(Marker1_time_raw) || isempty(Marker1_labels_raw)
+        warning('Marker stream 1 was selected, but it contains no markers.');
+    end
 end
 
-if ~isempty(mvcMarkerIdx)
-    if isempty(MVCMarker_time_raw) || isempty(MVCMarker_labels_raw)
-        warning('MVC marker stream was selected, but it contains no MVC markers.');
+if ~isempty(marker2Idx)
+    if isempty(Marker2_time_raw) || isempty(Marker2_labels_raw)
+        warning('Marker stream 2 was selected, but it contains no markers.');
     end
 end
 
@@ -150,33 +156,51 @@ ForcePlate_data = make_channels_by_samples(ForcePlate_data, ForcePlate_time_raw)
 
 %% 10. Convert Timestamps to Seconds From Recording Start
 
-t0 = min([ ...
-    EEG_time_raw(1), ...
-    EMG_time_raw(1), ...
-    ForcePlate_time_raw(1), ...
-    Marker_time_raw(1) ...
-]);
+startTimes = [EEG_time_raw(1), EMG_time_raw(1), ForcePlate_time_raw(1)];
+
+if ~isempty(Marker1_time_raw)
+    startTimes(end+1) = Marker1_time_raw(1);
+end
+
+if ~isempty(Marker2_time_raw)
+    startTimes(end+1) = Marker2_time_raw(1);
+end
+
+t0 = min(startTimes);
 
 EEG_time = EEG_time_raw - t0;
 EMG_time = EMG_time_raw - t0;
 ForcePlate_time = ForcePlate_time_raw - t0;
-Marker_time = Marker_time_raw - t0;
 
-if isempty(MVCMarker_time_raw)
-    MVCMarker_time = [];
+if isempty(Marker1_time_raw)
+    Marker1_time = [];
 else
-    MVCMarker_time = MVCMarker_time_raw - t0;
+    Marker1_time = Marker1_time_raw - t0;
+end
+
+if isempty(Marker2_time_raw)
+    Marker2_time = [];
+else
+    Marker2_time = Marker2_time_raw - t0;
 end
 
 %% 11. Clean Marker Labels And Build Marker Tables
 
-Marker_labels = clean_marker_labels(Marker_labels_raw);
-MVCMarker_labels = clean_marker_labels(MVCMarker_labels_raw);
+Marker1_labels = clean_marker_labels(Marker1_labels_raw);
+Marker2_labels = clean_marker_labels(Marker2_labels_raw);
 
-MarkerTable = make_marker_table(Marker_time, Marker_labels);
-MVCMarkerTable = make_marker_table(MVCMarker_time, MVCMarker_labels);
+MarkerStream1Table = make_marker_table(Marker1_time, Marker1_labels, Marker1_source_name);
+MarkerStream2Table = make_marker_table(Marker2_time, Marker2_labels, Marker2_source_name);
 
-AllMarkerTable = make_all_marker_table(MarkerTable, MVCMarkerTable);
+MarkerTable = [MarkerStream1Table; MarkerStream2Table];
+
+if height(MarkerTable) > 0
+    MarkerTable = sortrows(MarkerTable, 'Time_seconds');
+end
+
+Marker_time = MarkerTable.Time_seconds;
+Marker_labels = MarkerTable.Marker_Label;
+Marker_source = MarkerTable.Marker_Source;
 
 %% 12. Get Sample Rates And Channel Labels
 
@@ -202,8 +226,8 @@ MultiModal.Meta.time_zero_note = ...
 MultiModal.Meta.selected_stream_indices.EEG = eegIdx;
 MultiModal.Meta.selected_stream_indices.EMG = emgIdx;
 MultiModal.Meta.selected_stream_indices.ForcePlate = forceIdx;
-MultiModal.Meta.selected_stream_indices.Markers = markerIdx;
-MultiModal.Meta.selected_stream_indices.MVCMarkers = mvcMarkerIdx;
+MultiModal.Meta.selected_stream_indices.MarkerStream1 = marker1Idx;
+MultiModal.Meta.selected_stream_indices.MarkerStream2 = marker2Idx;
 
 MultiModal.EEG.data = EEG_data;
 MultiModal.EEG.time = EEG_time;
@@ -223,29 +247,25 @@ MultiModal.ForcePlate.srate = ForcePlate_srate;
 MultiModal.ForcePlate.info = forceStream.info;
 MultiModal.ForcePlate.channel_labels = ForcePlate_channel_labels;
 
-% Keep the original Markers fields as regular GuiMarkers only.
-% This preserves compatibility with older analysis scripts.
-MultiModal.Markers.time = Marker_time(:);
-MultiModal.Markers.labels = Marker_labels(:);
+% Main combined marker output.
+MultiModal.Markers.time = Marker_time;
+MultiModal.Markers.labels = Marker_labels;
+MultiModal.Markers.source = Marker_source;
 MultiModal.Markers.table = MarkerTable;
-MultiModal.Markers.info = markerStream.info;
 
-% Add MVC markers separately.
-MultiModal.Markers.MVC.time = MVCMarker_time(:);
-MultiModal.Markers.MVC.labels = MVCMarker_labels(:);
-MultiModal.Markers.MVC.table = MVCMarkerTable;
+% Marker stream 1.
+MultiModal.Markers.Stream1.name = Marker1_source_name;
+MultiModal.Markers.Stream1.time = Marker1_time(:);
+MultiModal.Markers.Stream1.labels = Marker1_labels(:);
+MultiModal.Markers.Stream1.table = MarkerStream1Table;
+MultiModal.Markers.Stream1.info = Marker1_info;
 
-if isempty(mvcMarkerStream)
-    MultiModal.Markers.MVC.info = [];
-else
-    MultiModal.Markers.MVC.info = mvcMarkerStream.info;
-end
-
-% Add combined marker table.
-MultiModal.Markers.All.table = AllMarkerTable;
-MultiModal.Markers.All.time = AllMarkerTable.Time_seconds;
-MultiModal.Markers.All.labels = AllMarkerTable.Marker_Label;
-MultiModal.Markers.All.source = AllMarkerTable.Marker_Source;
+% Marker stream 2.
+MultiModal.Markers.Stream2.name = Marker2_source_name;
+MultiModal.Markers.Stream2.time = Marker2_time(:);
+MultiModal.Markers.Stream2.labels = Marker2_labels(:);
+MultiModal.Markers.Stream2.table = MarkerStream2Table;
+MultiModal.Markers.Stream2.info = Marker2_info;
 
 %% 14. Print Summary
 
@@ -260,17 +280,12 @@ fprintf('EMG:         %d channels x %d samples, %.2f Hz\n', ...
 fprintf('Force Plate: %d channels x %d samples, %.2f Hz\n', ...
     size(ForcePlate_data, 1), size(ForcePlate_data, 2), ForcePlate_srate);
 
-fprintf('Regular markers: %d events\n', height(MarkerTable));
-fprintf('MVC markers:     %d events\n', height(MVCMarkerTable));
-fprintf('All markers:     %d events\n', height(AllMarkerTable));
+fprintf('Marker stream 1 (%s): %d events\n', Marker1_source_name, height(MarkerStream1Table));
+fprintf('Marker stream 2 (%s): %d events\n', Marker2_source_name, height(MarkerStream2Table));
+fprintf('Combined MarkerTable: %d events\n', height(MarkerTable));
 
-fprintf('\nRegular MarkerTable:\n');
+fprintf('\nCombined MarkerTable:\n');
 disp(MarkerTable);
-
-if height(MVCMarkerTable) > 0
-    fprintf('\nMVCMarkerTable:\n');
-    disp(MVCMarkerTable);
-end
 
 %% 15. Create Output Folder
 
@@ -286,47 +301,90 @@ end
 
 outputMatFile = fullfile(processedFolder, [baseName '_multimodal_raw.mat']);
 outputMarkerFile = fullfile(processedFolder, [baseName '_markers.csv']);
-outputMVCMarkerFile = fullfile(processedFolder, [baseName '_mvc_markers.csv']);
-outputAllMarkerFile = fullfile(processedFolder, [baseName '_all_markers.csv']);
+outputMarker1File = fullfile(processedFolder, [baseName '_marker_stream_1.csv']);
+outputMarker2File = fullfile(processedFolder, [baseName '_marker_stream_2.csv']);
 
 save(outputMatFile, ...
     'MultiModal', ...
     'EEG_data', 'EEG_time', 'EEG_srate', 'EEG_channel_labels', ...
     'EMG_data', 'EMG_time', 'EMG_srate', 'EMG_channel_labels', ...
     'ForcePlate_data', 'ForcePlate_time', 'ForcePlate_srate', 'ForcePlate_channel_labels', ...
-    'Marker_time', 'Marker_labels', 'MarkerTable', ...
-    'MVCMarker_time', 'MVCMarker_labels', 'MVCMarkerTable', ...
-    'AllMarkerTable', ...
+    'Marker_time', 'Marker_labels', 'Marker_source', 'MarkerTable', ...
+    'MarkerStream1Table', 'MarkerStream2Table', ...
     '-v7.3');
 
 writetable(MarkerTable, outputMarkerFile);
-writetable(MVCMarkerTable, outputMVCMarkerFile);
-writetable(AllMarkerTable, outputAllMarkerFile);
+writetable(MarkerStream1Table, outputMarker1File);
+writetable(MarkerStream2Table, outputMarker2File);
 
 fprintf('\nSaved organized multimodal file:\n%s\n', outputMatFile);
-fprintf('Saved regular marker table:\n%s\n', outputMarkerFile);
-fprintf('Saved MVC marker table:\n%s\n', outputMVCMarkerFile);
-fprintf('Saved combined marker table:\n%s\n', outputAllMarkerFile);
+fprintf('Saved combined marker table:\n%s\n', outputMarkerFile);
+fprintf('Saved marker stream 1 table:\n%s\n', outputMarker1File);
+fprintf('Saved marker stream 2 table:\n%s\n', outputMarker2File);
 
-fprintf('\nDone. Your XDF is organized into EEG, EMG, ForcePlate, regular markers, and MVC markers.\n');
+fprintf('\nDone. Your XDF is organized into EEG, EMG, ForcePlate, and combined Markers.\n');
 
 fprintf('\nEasy workspace variables created:\n');
 fprintf('EEG_data, EEG_time\n');
 fprintf('EMG_data, EMG_time\n');
 fprintf('ForcePlate_data, ForcePlate_time\n');
 fprintf('MarkerTable\n');
-fprintf('MVCMarkerTable\n');
-fprintf('AllMarkerTable\n');
+fprintf('MarkerStream1Table\n');
+fprintf('MarkerStream2Table\n');
 
 %% ===== Helper Functions =====
 
-function check_stream_index(idx, nStreams, streamName)
+function check_required_stream_index(idx, nStreams, streamName)
     if isempty(idx)
         error('%s stream number cannot be empty.', streamName);
     end
 
     if ~isscalar(idx) || idx < 1 || idx > nStreams || idx ~= round(idx)
         error('%s stream number must be an integer from 1 to %d.', streamName, nStreams);
+    end
+end
+
+function check_optional_stream_index(idx, nStreams, streamName)
+    if isempty(idx)
+        return
+    end
+
+    if ~isscalar(idx) || idx < 1 || idx > nStreams || idx ~= round(idx)
+        error('%s stream number must be [] or an integer from 1 to %d.', streamName, nStreams);
+    end
+end
+
+function [markerTimeRaw, markerLabelsRaw, sourceName, streamInfo] = extract_marker_stream(markerStream, defaultName)
+    if isempty(markerStream)
+        markerTimeRaw = [];
+        markerLabelsRaw = {};
+        sourceName = defaultName + "_NotRecorded";
+        streamInfo = [];
+        return
+    end
+
+    if isfield(markerStream, 'time_stamps')
+        markerTimeRaw = markerStream.time_stamps;
+    else
+        markerTimeRaw = [];
+    end
+
+    if isfield(markerStream, 'time_series')
+        markerLabelsRaw = markerStream.time_series;
+    else
+        markerLabelsRaw = {};
+    end
+
+    sourceName = string(get_xdf_info(markerStream, 'name'));
+
+    if strlength(sourceName) == 0
+        sourceName = defaultName;
+    end
+
+    if isfield(markerStream, 'info')
+        streamInfo = markerStream.info;
+    else
+        streamInfo = [];
     end
 end
 
@@ -398,42 +456,20 @@ function labelsOut = clean_marker_labels(labelsIn)
     end
 end
 
-function MarkerTableOut = make_marker_table(markerTime, markerLabels)
+function MarkerTableOut = make_marker_table(markerTime, markerLabels, sourceName)
     markerTime = markerTime(:);
     markerLabels = markerLabels(:);
 
     nMarkers = min(numel(markerTime), numel(markerLabels));
 
+    markerSource = repmat(string(sourceName), nMarkers, 1);
+
     MarkerTableOut = table( ...
         markerTime(1:nMarkers), ...
         markerLabels(1:nMarkers), ...
-        'VariableNames', {'Time_seconds', 'Marker_Label'} ...
-    );
-end
-
-function AllMarkerTable = make_all_marker_table(MarkerTable, MVCMarkerTable)
-    regularSource = repmat("GuiMarkers", height(MarkerTable), 1);
-    mvcSource = repmat("MVCMarkers", height(MVCMarkerTable), 1);
-
-    RegularForAll = table( ...
-        MarkerTable.Time_seconds, ...
-        MarkerTable.Marker_Label, ...
-        regularSource, ...
+        markerSource, ...
         'VariableNames', {'Time_seconds', 'Marker_Label', 'Marker_Source'} ...
     );
-
-    MVCForAll = table( ...
-        MVCMarkerTable.Time_seconds, ...
-        MVCMarkerTable.Marker_Label, ...
-        mvcSource, ...
-        'VariableNames', {'Time_seconds', 'Marker_Label', 'Marker_Source'} ...
-    );
-
-    AllMarkerTable = [RegularForAll; MVCForAll];
-
-    if height(AllMarkerTable) > 0
-        AllMarkerTable = sortrows(AllMarkerTable, 'Time_seconds');
-    end
 end
 
 function labels = get_xdf_channel_labels(stream)
