@@ -1,9 +1,3 @@
-% Purpose:
-% Stream MVC-specific event markers to LabRecorder through LSL.
-%
-% Markers:
-% MVC Start, MVC End, Rest Start, Rest End, TA, PL, GM, GL
-
 %% 1. Configuration & Setup
 clear; clc;
 
