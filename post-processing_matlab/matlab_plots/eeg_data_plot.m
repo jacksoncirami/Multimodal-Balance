@@ -4,6 +4,7 @@ tEnd   = [];
 chToPlot = 1:size(EEG_data,1);
 maxPlotPoints = 20000;
 showMarkerLabels = true;
+
 normalizeChannels = true;   % true = normalized view, false = raw values with vertical offsets
 
 % ===== Check selected channels =====
