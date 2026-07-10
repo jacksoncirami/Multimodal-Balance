@@ -7,6 +7,30 @@ showMarkerLabels = true;
 plotRMS = false;                 % false = raw EMG, true = RMS envelope
 rmsWindowSeconds = 0.050;        % 50 ms RMS window if plotRMS = true
 
+% ===== Check selected channels =====
+if isempty(chToPlot) || min(chToPlot) < 1 || max(chToPlot) > size(EMG_data,1)
+    error('chToPlot contains an invalid EMG channel number.');
+end
+
+% ===== Channel labels =====
+lineLabels = strings(1, numel(chToPlot));
+
+for k = 1:numel(chToPlot)
+    thisCh = chToPlot(k);
+
+    if exist('EMG_channel_labels','var') && numel(EMG_channel_labels) >= thisCh
+        thisLabel = string(EMG_channel_labels(thisCh));
+    else
+        thisLabel = "";
+    end
+
+    if strlength(thisLabel) == 0
+        thisLabel = "EMG Ch " + string(thisCh);
+    end
+
+    lineLabels(k) = thisLabel;
+end
+
 % ===== Time window =====
 if isempty(tStart)
     tStart = EMG_time(1);
@@ -17,6 +41,10 @@ if isempty(tEnd)
 end
 
 idx = EMG_time >= tStart & EMG_time <= tEnd;
+
+if ~any(idx)
+    error('No EMG data found in the selected time window.');
+end
 
 plotTime = EMG_time(idx);
 plotData = EMG_data(chToPlot, idx);
@@ -98,6 +126,16 @@ end
 
 xlim([tStart tEnd]);
 
+% ===== Add y-axis channel labels =====
+ytickPositions = (size(displayData,1) - (1:size(displayData,1))) * offsetAmount;
+
+[ytickPositionsSorted, sortIdx] = sort(ytickPositions);
+lineLabelsSorted = lineLabels(sortIdx);
+
+yticks(ytickPositionsSorted);
+yticklabels(lineLabelsSorted);
+ylim([-offsetAmount, size(displayData,1)*offsetAmount]);
+
 % ===== Marker visibility checkbox =====
 uicontrol('Style','checkbox', ...
     'String','Show markers', ...
@@ -105,4 +143,4 @@ uicontrol('Style','checkbox', ...
     'Units','normalized', ...
     'Position',[0.82 0.94 0.15 0.04], ...
     'UserData',markerHandles, ...
-    'Callback','h=get(gcbo,''UserData''); if get(gcbo,''Value''), set(h,''Visible'',''on''); else, set(h,''Visible'',''off''); end');
+    'Callback','h=get(gcbo,''UserData''); if ~isempty(h), if get(gcbo,''Value''), set(h,''Visible'',''on''); else, set(h,''Visible'',''off''); end; end');
