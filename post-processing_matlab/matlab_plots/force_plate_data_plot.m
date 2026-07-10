@@ -5,6 +5,30 @@ chToPlot = 1:size(ForcePlate_data,1);
 maxPlotPoints = 20000;
 showMarkerLabels = true;
 
+% ===== Check selected channels =====
+if isempty(chToPlot) || min(chToPlot) < 1 || max(chToPlot) > size(ForcePlate_data,1)
+    error('chToPlot contains an invalid force plate channel number.');
+end
+
+% ===== Channel labels =====
+lineLabels = strings(1, numel(chToPlot));
+
+for k = 1:numel(chToPlot)
+    thisCh = chToPlot(k);
+
+    if exist('ForcePlate_channel_labels','var') && numel(ForcePlate_channel_labels) >= thisCh
+        thisLabel = string(ForcePlate_channel_labels(thisCh));
+    else
+        thisLabel = "";
+    end
+
+    if strlength(thisLabel) == 0
+        thisLabel = "Force Ch " + string(thisCh);
+    end
+
+    lineLabels(k) = thisLabel;
+end
+
 % ===== Time window =====
 if isempty(tStart)
     tStart = ForcePlate_time(1);
@@ -15,6 +39,10 @@ if isempty(tEnd)
 end
 
 idx = ForcePlate_time >= tStart & ForcePlate_time <= tEnd;
+
+if ~any(idx)
+    error('No force plate data found in the selected time window.');
+end
 
 plotTime = ForcePlate_time(idx);
 plotData = ForcePlate_data(chToPlot, idx);
@@ -78,6 +106,16 @@ ylabel('Force plate channels, normalized and offset');
 title('Force Plate Data With Markers');
 xlim([tStart tEnd]);
 
+% ===== Add y-axis channel labels =====
+ytickPositions = (size(displayData,1) - (1:size(displayData,1))) * offsetAmount;
+
+[ytickPositionsSorted, sortIdx] = sort(ytickPositions);
+lineLabelsSorted = lineLabels(sortIdx);
+
+yticks(ytickPositionsSorted);
+yticklabels(lineLabelsSorted);
+ylim([-offsetAmount, size(displayData,1)*offsetAmount]);
+
 % ===== Marker visibility checkbox =====
 uicontrol('Style','checkbox', ...
     'String','Show markers', ...
@@ -85,4 +123,4 @@ uicontrol('Style','checkbox', ...
     'Units','normalized', ...
     'Position',[0.82 0.94 0.15 0.04], ...
     'UserData',markerHandles, ...
-    'Callback','h=get(gcbo,''UserData''); if get(gcbo,''Value''), set(h,''Visible'',''on''); else, set(h,''Visible'',''off''); end');
+    'Callback','h=get(gcbo,''UserData''); if ~isempty(h), if get(gcbo,''Value''), set(h,''Visible'',''on''); else, set(h,''Visible'',''off''); end; end');
