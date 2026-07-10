@@ -1,4 +1,5 @@
-%Makes the current EEGLAB/MATLAB plot easier to read
+% Purpose:
+% Fixes EEGLAB 'Channel data (scroll)' plot visibility issue
 
 fig = gcf;
 set(fig,'Color','w')
