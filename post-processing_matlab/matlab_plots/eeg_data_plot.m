@@ -4,6 +4,7 @@ tEnd   = [];
 chToPlot = 1:size(EEG_data,1);
 maxPlotPoints = 20000;
 showMarkerLabels = true;
+normalizeChannels = true;   % true = normalized view, false = raw values with vertical offsets
 
 % ===== Check selected channels =====
 if isempty(chToPlot) || min(chToPlot) < 1 || max(chToPlot) > size(EEG_data,1)
@@ -52,29 +53,53 @@ step = max(1, ceil(length(plotTime) / maxPlotPoints));
 plotTime = plotTime(1:step:end);
 plotData = plotData(:, 1:step:end);
 
-% ===== Normalize and offset channels for viewing =====
-displayData = zeros(size(plotData));
+% ===== Normalize option =====
+if normalizeChannels
+    displayData = zeros(size(plotData));
 
-for ch = 1:size(plotData,1)
-    sig = plotData(ch,:);
-    sig = sig - mean(sig, 'omitnan');
-    scaleVal = max(abs(sig), [], 'omitnan');
+    for ch = 1:size(plotData,1)
+        sig = plotData(ch,:);
+        sig = sig - mean(sig, 'omitnan');
+        scaleVal = max(abs(sig), [], 'omitnan');
 
-    if isempty(scaleVal) || scaleVal == 0 || isnan(scaleVal)
-        scaleVal = 1;
+        if isempty(scaleVal) || scaleVal == 0 || isnan(scaleVal)
+            scaleVal = 1;
+        end
+
+        displayData(ch,:) = sig ./ scaleVal;
     end
 
-    displayData(ch,:) = sig ./ scaleVal;
+    offsetAmount = 3;
+    yAxisText = 'EEG channels, normalized and offset';
+
+else
+    displayData = plotData;
+
+    channelRanges = max(plotData, [], 2, 'omitnan') - min(plotData, [], 2, 'omitnan');
+    typicalRange = median(channelRanges, 'omitnan');
+
+    if isempty(typicalRange) || typicalRange == 0 || isnan(typicalRange)
+        typicalRange = max(abs(plotData(:)), [], 'omitnan');
+    end
+
+    if isempty(typicalRange) || typicalRange == 0 || isnan(typicalRange)
+        typicalRange = 1;
+    end
+
+    offsetAmount = 1.25 * typicalRange;
+    yAxisText = 'EEG channels, raw values with vertical offsets';
 end
 
-offsetAmount = 3;
+% ===== Apply vertical offsets =====
+nChannels = size(displayData,1);
+offsets = (nChannels - (1:nChannels))' * offsetAmount;
+displayWithOffset = displayData + offsets;
 
 figure('Name','EEG Data With Markers','NumberTitle','off');
 hold on;
 
-for ch = 1:size(displayData,1)
-    yOffset = (size(displayData,1) - ch) * offsetAmount;
-    plot(plotTime, displayData(ch,:) + yOffset);
+for ch = 1:nChannels
+    plot(plotTime, displayWithOffset(ch,:));
 end
 
 % ===== Add markers and save marker handles =====
@@ -85,36 +110,62 @@ if exist('MarkerTable','var') && height(MarkerTable) > 0
     markerTimes = MarkerTable.Time_seconds(markerIdx);
     markerLabels = string(MarkerTable.Marker_Label(markerIdx));
 
+    if normalizeChannels
+        yMin = -offsetAmount;
+        yMax = nChannels * offsetAmount;
+        yRange = yMax - yMin;
+        markerTextY = yMax - 0.5*offsetAmount;
+    else
+        yMin = min(displayWithOffset(:), [], 'omitnan');
+        yMax = max(displayWithOffset(:), [], 'omitnan');
+        yRange = yMax - yMin;
+
+        if isempty(yRange) || yRange == 0 || isnan(yRange)
+            yRange = 1;
+        end
+
+        markerTextY = yMax + 0.03*yRange;
+    end
+
     for m = 1:length(markerTimes)
         hLine = xline(markerTimes(m), '--');
         markerHandles(end+1) = hLine;
 
         if showMarkerLabels
-            hText = text(markerTimes(m), size(displayData,1)*offsetAmount, markerLabels(m), ...
+            hText = text(markerTimes(m), markerTextY, markerLabels(m), ...
                 'Rotation', 90, ...
                 'FontSize', 8, ...
                 'HorizontalAlignment', 'right');
             markerHandles(end+1) = hText;
         end
     end
+
+    if normalizeChannels
+        ylim([-offsetAmount, nChannels * offsetAmount]);
+    else
+        ylim([yMin - 0.05*yRange, yMax + 0.20*yRange]);
+    end
 end
 
 hold off;
 grid on;
 xlabel('Time (s)');
-ylabel('EEG channels, normalized and offset');
+ylabel(yAxisText);
 title('EEG Data With Markers');
 xlim([tStart tEnd]);
 
 % ===== Add y-axis channel labels =====
-ytickPositions = (size(displayData,1) - (1:size(displayData,1))) * offsetAmount;
+ytickPositions = offsets;
 
 [ytickPositionsSorted, sortIdx] = sort(ytickPositions);
 lineLabelsSorted = lineLabels(sortIdx);
 
 yticks(ytickPositionsSorted);
 yticklabels(lineLabelsSorted);
-ylim([-offsetAmount, size(displayData,1)*offsetAmount]);
+
+if normalizeChannels
+    ylim([-offsetAmount, nChannels * offsetAmount]);
+end
 
 % ===== Marker visibility checkbox =====
 uicontrol('Style','checkbox', ...
