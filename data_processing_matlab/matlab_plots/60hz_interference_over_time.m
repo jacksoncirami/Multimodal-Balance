@@ -3,6 +3,7 @@
 % EMG_data, EMG_time, and EMG_srate in the workspace.
 
 close all;
+clc;
 
 eegChannel = 3;
 emgChannel = 1;
