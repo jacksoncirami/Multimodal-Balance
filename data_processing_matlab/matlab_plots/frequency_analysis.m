@@ -3,8 +3,7 @@
 close all;
 clc;
 
-%% Settings
-
+% ===== Adjustable settings =====
 eegChannel = 3;
 emgChannel = 1;
 
@@ -12,8 +11,7 @@ emgChannel = 1;
 cleanWindow = [250 300];
 noisyWindow = [350 400];
 
-%% EEG FFT comparison
-
+% EEG FFT comparison
 plot_fft_comparison( ...
     EEG_data(eegChannel, :), ...
     EEG_time, ...
@@ -23,8 +21,7 @@ plot_fft_comparison( ...
     sprintf('EEG Channel %d', eegChannel), ...
     EEG_srate / 2);
 
-%% EMG FFT comparison
-
+% EMG FFT comparison
 plot_fft_comparison( ...
     EMG_data(emgChannel, :), ...
     EMG_time, ...
@@ -36,16 +33,14 @@ plot_fft_comparison( ...
 
 disp('FFT comparison complete.');
 
-%% Local function
-
+% Local function
 function plot_fft_comparison(signal, time, sampleRate, ...
     cleanWindow, noisyWindow, signalName, maximumFrequency)
 
     signal = double(signal(:));
     time = double(time(:));
 
-    %% Extract clean and noisy periods
-
+    % Extract clean and noisy periods
     cleanIndex = time >= cleanWindow(1) & ...
                  time <= cleanWindow(2);
 
@@ -63,26 +58,22 @@ function plot_fft_comparison(signal, time, sampleRate, ...
         error('The noisy window does not contain any samples.');
     end
 
-    %% Replace invalid samples
-
+    % Replace invalid samples
     cleanSignal(~isfinite(cleanSignal)) = 0;
     noisySignal(~isfinite(noisySignal)) = 0;
 
-    %% Remove the mean
-
+    % Remove the mean
     cleanSignal = cleanSignal - mean(cleanSignal);
     noisySignal = noisySignal - mean(noisySignal);
 
-    %% Compute amplitude spectra
-
+    % Compute amplitude spectra
     [cleanFrequency, cleanAmplitude] = ...
         calculate_fft(cleanSignal, sampleRate);
 
     [noisyFrequency, noisyAmplitude] = ...
         calculate_fft(noisySignal, sampleRate);
 
-    %% Plot
-
+    % Plot
     figure('Name', [signalName ' Frequency Comparison']);
 
     plot(cleanFrequency, ...
