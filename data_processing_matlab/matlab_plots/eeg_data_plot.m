@@ -7,7 +7,7 @@ showMarkerLabels = true;
 
 normalizeChannels = false;  % true = normalized, false = amplitude preserved
 
-yScale = 100;               % Visible range around each channel: +/- yScale
+yScale = 1000;               % Visible range around each channel: +/- yScale
 signalUnit = '\muV';
 
 
