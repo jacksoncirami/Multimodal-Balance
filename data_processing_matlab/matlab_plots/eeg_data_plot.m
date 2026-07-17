@@ -1,5 +1,3 @@
-%% Plot EEG Data With Markers
-
 % ===== Adjustable settings =====
 tStart = [];
 tEnd   = [];
