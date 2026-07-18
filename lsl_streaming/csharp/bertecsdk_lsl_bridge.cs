@@ -11,12 +11,26 @@ namespace BertecExampleNET
      * a software tare, calculates center-of-pressure values, estimates
      * center-of-gravity position, and streams the results through LSL.
      *
-     * Requirements:
-     * - Bertec SDK and required Bertec .NET libraries
-     * - Compatible liblsl C# library
-     * - Visual Studio or another compatible C# development environment
+     * Project Setup Requirements:
      *
-     * Before use:
+     * This source file must be used inside a compatible Visual Studio
+     * C# project. The project must also include:
+     *
+     * - The LSL C# wrapper file, such as LSL.cs
+     * - The native lsl.dll file available to the built application
+     * - A reference to BertecDeviceNET
+     * - The required Bertec SDK DLLs
+     * - The correct x86 or x64 build configuration for the installed
+     *   Bertec and LSL libraries
+     *
+     * These dependencies are configured through the Visual Studio project
+     * and Solution Explorer. They are not contained inside this source file.
+     *
+     * Proprietary Bertec SDK files and license-protected components are not
+     * included in this repository. Users must obtain them from Bertec.
+     *
+     * Before Use:
+     *
      * - Confirm that the required Bertec channel names match the connected
      *   force-plate configuration.
      * - Confirm the expected sampling rate.
@@ -25,6 +39,7 @@ namespace BertecExampleNET
      * - Verify the LSL stream in LabRecorder before recording.
      *
      * Important:
+     *
      * - COGX_est, COGY_est, and COG_est are estimated values.
      * - They are not direct force-plate measurements.
      */
@@ -53,8 +68,8 @@ namespace BertecExampleNET
          * Future users should verify these values for their own hardware,
          * sampling configuration, and analysis requirements.
          */
-        const int BASELINE_SAMPLE_COUNT = 2000;   // Approximately 2 seconds at 1000 Hz.
-        const double MIN_FORCE_FOR_COP = 20.0;    // Minimum vertical force required for COP, in N.
+        const int BASELINE_SAMPLE_COUNT = 2000;
+        const double MIN_FORCE_FOR_COP = 20.0;
         const double SAMPLE_RATE_HZ = 1000.0;
         const double DT = 1.0 / SAMPLE_RATE_HZ;
         const double GRAVITY = 9.81;
