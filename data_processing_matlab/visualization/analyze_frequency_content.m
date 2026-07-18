@@ -1,17 +1,38 @@
-%% EEG and EMG Frequency Analysis
+%% analyze_frequency_content
+% Compare the frequency content of selected clean and noisy EEG and EMG
+% time windows using amplitude spectra calculated with the FFT.
+%
+% Required workspace variables:
+%   - EEG_data
+%   - EEG_time
+%   - EEG_srate
+%   - EMG_data
+%   - EMG_time
+%   - EMG_srate
+%
+% Output:
+%   - One EEG frequency-comparison figure
+%   - One EMG frequency-comparison figure
+%
+% Usage:
+%   Load the organized multimodal MAT file, adjust the channel and time
+%   windows below if needed, and run the script.
 
 close all;
 clc;
 
-% ===== Adjustable settings =====
-eegChannel = 3;
+%% User Settings
+
+% Adjust the channel numbers and time windows for the recording being analyzed.
+eegChannel = 1;
 emgChannel = 1;
 
-% Use equal-length windows for a fair comparison
-cleanWindow = [250 300];
-noisyWindow = [350 400];
+% Use equal-length time windows for a fair comparison.
+cleanWindow = [200 250];
+noisyWindow = [100 150];
 
-% EEG FFT comparison
+%% Compare EEG Frequency Content
+
 plot_fft_comparison( ...
     EEG_data(eegChannel, :), ...
     EEG_time, ...
@@ -21,7 +42,8 @@ plot_fft_comparison( ...
     sprintf('EEG Channel %d', eegChannel), ...
     EEG_srate / 2);
 
-% EMG FFT comparison
+%% Compare EMG Frequency Content
+
 plot_fft_comparison( ...
     EMG_data(emgChannel, :), ...
     EMG_time, ...
@@ -33,14 +55,16 @@ plot_fft_comparison( ...
 
 disp('FFT comparison complete.');
 
-% Local function
+%% Helper Functions
+
 function plot_fft_comparison(signal, time, sampleRate, ...
     cleanWindow, noisyWindow, signalName, maximumFrequency)
+% Compare FFT amplitude spectra from selected clean and noisy time periods.
 
     signal = double(signal(:));
     time = double(time(:));
 
-    % Extract clean and noisy periods
+    % Extract the selected clean and noisy periods.
     cleanIndex = time >= cleanWindow(1) & ...
                  time <= cleanWindow(2);
 
@@ -58,22 +82,19 @@ function plot_fft_comparison(signal, time, sampleRate, ...
         error('The noisy window does not contain any samples.');
     end
 
-    % Replace invalid samples
+    % Replace invalid values and remove each segment mean.
     cleanSignal(~isfinite(cleanSignal)) = 0;
     noisySignal(~isfinite(noisySignal)) = 0;
 
-    % Remove the mean
     cleanSignal = cleanSignal - mean(cleanSignal);
     noisySignal = noisySignal - mean(noisySignal);
 
-    % Compute amplitude spectra
     [cleanFrequency, cleanAmplitude] = ...
         calculate_fft(cleanSignal, sampleRate);
 
     [noisyFrequency, noisyAmplitude] = ...
         calculate_fft(noisySignal, sampleRate);
 
-    % Plot
     figure('Name', [signalName ' Frequency Comparison']);
 
     plot(cleanFrequency, ...
@@ -86,7 +107,7 @@ function plot_fft_comparison(signal, time, sampleRate, ...
         20 * log10(noisyAmplitude + eps), ...
         'LineWidth', 1.2);
 
-    % Mark expected US electrical interference frequencies
+    % Mark expected U.S. electrical interference frequencies.
     for frequency = 60:60:maximumFrequency
         xline(frequency, '--', sprintf('%d Hz', frequency));
     end
@@ -109,10 +130,11 @@ function plot_fft_comparison(signal, time, sampleRate, ...
 end
 
 function [frequency, amplitude] = calculate_fft(signal, sampleRate)
+% Calculate a single-sided amplitude spectrum using a manual Hann window.
 
     numberOfSamples = numel(signal);
 
-    % Manually create a Hann window without using hann()
+    % Create a Hann window without requiring the hann() function.
     sampleNumbers = (0:numberOfSamples - 1)';
 
     if numberOfSamples > 1
@@ -126,7 +148,7 @@ function [frequency, amplitude] = calculate_fft(signal, sampleRate)
 
     transformedSignal = fft(windowedSignal);
 
-    % Normalize using the window amplitude
+    % Normalize the spectrum using the summed window amplitude.
     twoSidedAmplitude = ...
         abs(transformedSignal) / sum(window);
 
