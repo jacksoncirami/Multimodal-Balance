@@ -9,6 +9,10 @@
 %   Format:    cf_string
 %   Source ID: task_marker_gui_001
 %
+% A separate marker script may use a similar interface structure while
+% broadcasting a different set of markers through its own unique LSL
+% stream.
+%
 % Requirements:
 %   - MATLAB
 %   - A compatible version of liblsl-Matlab
