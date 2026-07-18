@@ -1,9 +1,33 @@
-% Purpose:
-% Load a LabRecorder .xdf file containing EEG, EMG, force plate, and two LSL marker streams
+%% organize_multimodal_xdf
+% Load and organize a LabRecorder XDF file containing EEG, EMG,
+% force-plate, and up to two LSL marker streams.
+%
+% The script displays the streams contained in the selected XDF file and
+% asks the user to identify the EEG, EMG, force-plate, and marker streams.
+% It then organizes the selected data into MATLAB variables, creates a
+% combined multimodal structure, and saves the results as MAT and CSV files.
+%
+% Inputs:
+%   - One LabRecorder .xdf file selected through a file-selection window
+%   - Stream numbers entered in the MATLAB Command Window
+%
+% Outputs:
+%   - Organized multimodal MAT file
+%   - Combined marker CSV file
+%   - Separate CSV files for each marker stream
+%   - EEG, EMG, force-plate, and marker variables in the workspace
+%
+% Requirements:
+%   - MATLAB
+%   - load_xdf from the xdf-Matlab repository available on the MATLAB path
+%
+% Usage:
+%   Run the script and follow the file-selection and Command Window prompts.
 
-clear; clc;
+clear;
+clc;
 
-%% 1. Check That load_xdf is Available
+%% 1. Check That load_xdf Is Available
 
 if exist('load_xdf', 'file') ~= 2
     error(['load_xdf was not found on the MATLAB path.\n\n' ...
@@ -12,7 +36,7 @@ end
 
 fprintf('\nUsing load_xdf from:\n%s\n', which('load_xdf'));
 
-%% 2. Select XDF File
+%% 2. Select the XDF File
 
 [file, folder] = uigetfile('*.xdf', 'Select your LabRecorder XDF file');
 
@@ -24,7 +48,7 @@ xdfFile = fullfile(folder, file);
 
 fprintf('\nSelected XDF file:\n%s\n', xdfFile);
 
-%% 3. Load XDF File
+%% 3. Load the XDF File
 
 [streams, fileheader] = load_xdf(xdfFile);
 
@@ -32,7 +56,10 @@ if isempty(streams)
     error('No streams were found in this XDF file.');
 end
 
-%% 4. Print Stream Information
+%% 4. Display the Available Streams
+
+% Print identifying information for each stream so the correct stream
+% numbers can be selected in the next section.
 
 fprintf('\n===== Streams found in XDF file =====\n');
 
@@ -63,7 +90,10 @@ for i = 1:length(streams)
     fprintf('Data size: %s\n', mat2str(dataSize));
 end
 
-%% 5. Enter Stream Numbers
+%% 5. Select the Required Streams
+
+% The EEG, EMG, and force-plate streams are required. Either marker stream
+% may be omitted by entering [], but at least one marker stream is required.
 
 fprintf('\nEnter the stream numbers based on the list above.\n');
 fprintf('For a marker stream that was not recorded, type [].\n');
@@ -87,7 +117,7 @@ if isempty(marker1Idx) && isempty(marker2Idx)
     error('At least one marker stream must be selected.');
 end
 
-%% 6. Assign Streams
+%% 6. Assign the Selected Streams
 
 eegStream = streams{eegIdx};
 emgStream = streams{emgIdx};
@@ -105,7 +135,7 @@ else
     marker2Stream = streams{marker2Idx};
 end
 
-%% 7. Extract Data And Timestamps
+%% 7. Extract Data and Original Timestamps
 
 EEG_data = double(eegStream.time_series);
 EMG_data = double(emgStream.time_series);
@@ -115,10 +145,13 @@ EEG_time_raw = eegStream.time_stamps;
 EMG_time_raw = emgStream.time_stamps;
 ForcePlate_time_raw = forceStream.time_stamps;
 
-[Marker1_time_raw, Marker1_labels_raw, Marker1_source_name, Marker1_info] = extract_marker_stream(marker1Stream, "MarkerStream1");
-[Marker2_time_raw, Marker2_labels_raw, Marker2_source_name, Marker2_info] = extract_marker_stream(marker2Stream, "MarkerStream2");
+[Marker1_time_raw, Marker1_labels_raw, Marker1_source_name, Marker1_info] = ...
+    extract_marker_stream(marker1Stream, "MarkerStream1");
 
-%% 8. Make Sure Required Data Streams Are Not Empty
+[Marker2_time_raw, Marker2_labels_raw, Marker2_source_name, Marker2_info] = ...
+    extract_marker_stream(marker2Stream, "MarkerStream2");
+
+%% 8. Confirm That the Selected Streams Contain Data
 
 if isempty(EEG_time_raw) || isempty(EEG_data)
     error('The selected EEG stream is empty. Check the EEG stream number.');
@@ -144,13 +177,19 @@ if ~isempty(marker2Idx)
     end
 end
 
-%% 9. Make All Data Channels x Samples
+%% 9. Orient Data as Channels by Samples
+
+% XDF streams may store samples along either dimension. These checks place
+% channels in rows and samples in columns when the orientation is clear.
 
 EEG_data = make_channels_by_samples(EEG_data, EEG_time_raw);
 EMG_data = make_channels_by_samples(EMG_data, EMG_time_raw);
 ForcePlate_data = make_channels_by_samples(ForcePlate_data, ForcePlate_time_raw);
 
 %% 10. Convert Timestamps to Seconds From Recording Start
+
+% Use the earliest selected stream timestamp as the common time origin.
+% Original XDF timestamps are preserved in the raw time variables.
 
 startTimes = [EEG_time_raw(1), EMG_time_raw(1), ForcePlate_time_raw(1)];
 
@@ -180,13 +219,16 @@ else
     Marker2_time = Marker2_time_raw - t0;
 end
 
-%% 11. Clean Marker Labels And Build Marker Tables
+%% 11. Clean Marker Labels and Build Marker Tables
 
 Marker1_labels = clean_marker_labels(Marker1_labels_raw);
 Marker2_labels = clean_marker_labels(Marker2_labels_raw);
 
-MarkerStream1Table = make_marker_table(Marker1_time, Marker1_labels, Marker1_source_name);
-MarkerStream2Table = make_marker_table(Marker2_time, Marker2_labels, Marker2_source_name);
+MarkerStream1Table = make_marker_table( ...
+    Marker1_time, Marker1_labels, Marker1_source_name);
+
+MarkerStream2Table = make_marker_table( ...
+    Marker2_time, Marker2_labels, Marker2_source_name);
 
 MarkerTable = [MarkerStream1Table; MarkerStream2Table];
 
@@ -198,7 +240,7 @@ Marker_time = MarkerTable.Time_seconds;
 Marker_labels = MarkerTable.Marker_Label;
 Marker_source = MarkerTable.Marker_Source;
 
-%% 12. Get Sample Rates And Channel Labels
+%% 12. Read Sample Rates and Channel Labels
 
 EEG_srate = str2double(get_xdf_info(eegStream, 'nominal_srate'));
 EMG_srate = str2double(get_xdf_info(emgStream, 'nominal_srate'));
@@ -208,13 +250,17 @@ EEG_channel_labels = get_xdf_channel_labels(eegStream);
 EMG_channel_labels = get_xdf_channel_labels(emgStream);
 ForcePlate_channel_labels = get_xdf_channel_labels(forceStream);
 
-%% 13. Build Organized Multimodal Structure
+%% 13. Build the Organized Multimodal Structure
+
+% Store the primary data, timing information, stream metadata, channel
+% labels, and marker information in one organized structure.
 
 MultiModal = struct();
 
 MultiModal.Meta.source_file = xdfFile;
 MultiModal.Meta.original_filename = file;
-MultiModal.Meta.import_datetime = string(datetime("now", "Format", "yyyy-MM-dd HH:mm:ss"));
+MultiModal.Meta.import_datetime = string(datetime("now", ...
+    "Format", "yyyy-MM-dd HH:mm:ss"));
 MultiModal.Meta.fileheader = fileheader;
 MultiModal.Meta.time_zero_note = ...
     'All time vectors are in seconds relative to the first stream start time.';
@@ -243,7 +289,7 @@ MultiModal.ForcePlate.srate = ForcePlate_srate;
 MultiModal.ForcePlate.info = forceStream.info;
 MultiModal.ForcePlate.channel_labels = ForcePlate_channel_labels;
 
-% Main combined marker output.
+% Combined marker output.
 MultiModal.Markers.time = Marker_time;
 MultiModal.Markers.labels = Marker_labels;
 MultiModal.Markers.source = Marker_source;
@@ -263,7 +309,7 @@ MultiModal.Markers.Stream2.labels = Marker2_labels(:);
 MultiModal.Markers.Stream2.table = MarkerStream2Table;
 MultiModal.Markers.Stream2.info = Marker2_info;
 
-%% 14. Print Summary
+%% 14. Display an Organized Data Summary
 
 fprintf('\n===== Organized data summary =====\n');
 
@@ -276,14 +322,20 @@ fprintf('EMG:         %d channels x %d samples, %.2f Hz\n', ...
 fprintf('Force Plate: %d channels x %d samples, %.2f Hz\n', ...
     size(ForcePlate_data, 1), size(ForcePlate_data, 2), ForcePlate_srate);
 
-fprintf('Marker stream 1 (%s): %d events\n', Marker1_source_name, height(MarkerStream1Table));
-fprintf('Marker stream 2 (%s): %d events\n', Marker2_source_name, height(MarkerStream2Table));
+fprintf('Marker stream 1 (%s): %d events\n', ...
+    Marker1_source_name, height(MarkerStream1Table));
+
+fprintf('Marker stream 2 (%s): %d events\n', ...
+    Marker2_source_name, height(MarkerStream2Table));
+
 fprintf('Combined MarkerTable: %d events\n', height(MarkerTable));
 
 fprintf('\nCombined MarkerTable:\n');
 disp(MarkerTable);
 
-%% 15. Create Output Folder
+%% 15. Create the Output Folder
+
+% Save processed files in a folder beside the selected XDF recording.
 
 processedFolder = fullfile(folder, 'processed_mat');
 
@@ -291,20 +343,28 @@ if ~exist(processedFolder, 'dir')
     mkdir(processedFolder);
 end
 
-%% 16. Save Files
+%% 16. Save the Organized Data and Marker Tables
 
 [~, baseName, ~] = fileparts(file);
 
-outputMatFile = fullfile(processedFolder, [baseName '_multimodal_raw.mat']);
-outputMarkerFile = fullfile(processedFolder, [baseName '_markers.csv']);
-outputMarker1File = fullfile(processedFolder, [baseName '_marker_stream_1.csv']);
-outputMarker2File = fullfile(processedFolder, [baseName '_marker_stream_2.csv']);
+outputMatFile = fullfile( ...
+    processedFolder, [baseName '_multimodal_raw.mat']);
+
+outputMarkerFile = fullfile( ...
+    processedFolder, [baseName '_markers.csv']);
+
+outputMarker1File = fullfile( ...
+    processedFolder, [baseName '_marker_stream_1.csv']);
+
+outputMarker2File = fullfile( ...
+    processedFolder, [baseName '_marker_stream_2.csv']);
 
 save(outputMatFile, ...
     'MultiModal', ...
     'EEG_data', 'EEG_time', 'EEG_srate', 'EEG_channel_labels', ...
     'EMG_data', 'EMG_time', 'EMG_srate', 'EMG_channel_labels', ...
-    'ForcePlate_data', 'ForcePlate_time', 'ForcePlate_srate', 'ForcePlate_channel_labels', ...
+    'ForcePlate_data', 'ForcePlate_time', 'ForcePlate_srate', ...
+    'ForcePlate_channel_labels', ...
     'Marker_time', 'Marker_labels', 'Marker_source', 'MarkerTable', ...
     'MarkerStream1Table', 'MarkerStream2Table', ...
     '-v7.3');
@@ -318,7 +378,8 @@ fprintf('Saved combined marker table:\n%s\n', outputMarkerFile);
 fprintf('Saved marker stream 1 table:\n%s\n', outputMarker1File);
 fprintf('Saved marker stream 2 table:\n%s\n', outputMarker2File);
 
-fprintf('\nDone. Your XDF is organized into EEG, EMG, ForcePlate, and combined Markers.\n');
+fprintf(['\nDone. Your XDF is organized into EEG, EMG, ForcePlate, ' ...
+         'and combined Markers.\n']);
 
 fprintf('\nEasy workspace variables created:\n');
 fprintf('EEG_data, EEG_time\n');
@@ -328,29 +389,38 @@ fprintf('MarkerTable\n');
 fprintf('MarkerStream1Table\n');
 fprintf('MarkerStream2Table\n');
 
-%% ===== Helper Functions =====
+%% Helper Functions
 
 function check_required_stream_index(idx, nStreams, streamName)
+% Confirm that a required stream index is a valid integer.
+
     if isempty(idx)
         error('%s stream number cannot be empty.', streamName);
     end
 
     if ~isscalar(idx) || idx < 1 || idx > nStreams || idx ~= round(idx)
-        error('%s stream number must be an integer from 1 to %d.', streamName, nStreams);
+        error('%s stream number must be an integer from 1 to %d.', ...
+            streamName, nStreams);
     end
 end
 
 function check_optional_stream_index(idx, nStreams, streamName)
+% Confirm that an optional stream index is empty or a valid integer.
+
     if isempty(idx)
         return
     end
 
     if ~isscalar(idx) || idx < 1 || idx > nStreams || idx ~= round(idx)
-        error('%s stream number must be [] or an integer from 1 to %d.', streamName, nStreams);
+        error('%s stream number must be [] or an integer from 1 to %d.', ...
+            streamName, nStreams);
     end
 end
 
-function [markerTimeRaw, markerLabelsRaw, sourceName, streamInfo] = extract_marker_stream(markerStream, defaultName)
+function [markerTimeRaw, markerLabelsRaw, sourceName, streamInfo] = ...
+    extract_marker_stream(markerStream, defaultName)
+% Extract timestamps, labels, source name, and metadata from a marker stream.
+
     if isempty(markerStream)
         markerTimeRaw = [];
         markerLabelsRaw = {};
@@ -385,6 +455,8 @@ function [markerTimeRaw, markerLabelsRaw, sourceName, streamInfo] = extract_mark
 end
 
 function value = get_xdf_info(stream, fieldname)
+% Read a requested value from the XDF stream information structure.
+
     value = '';
 
     if isfield(stream, 'info') && isfield(stream.info, fieldname)
@@ -401,6 +473,8 @@ function value = get_xdf_info(stream, fieldname)
 end
 
 function dataOut = make_channels_by_samples(dataIn, timeVector)
+% Orient a data matrix as channels by samples when dimensions are clear.
+
     dataOut = dataIn;
 
     nSamples = length(timeVector);
@@ -410,11 +484,14 @@ function dataOut = make_channels_by_samples(dataIn, timeVector)
     elseif size(dataOut, 1) == nSamples
         dataOut = dataOut';
     else
-        warning('Data size does not clearly match timestamp length. Leaving orientation unchanged.');
+        warning(['Data size does not clearly match timestamp length. ' ...
+                 'Leaving orientation unchanged.']);
     end
 end
 
 function labelsOut = clean_marker_labels(labelsIn)
+% Convert marker labels from common XDF formats into a string column.
+
     if isempty(labelsIn)
         labelsOut = strings(0, 1);
         return
@@ -452,7 +529,10 @@ function labelsOut = clean_marker_labels(labelsIn)
     end
 end
 
-function MarkerTableOut = make_marker_table(markerTime, markerLabels, sourceName)
+function MarkerTableOut = make_marker_table( ...
+    markerTime, markerLabels, sourceName)
+% Create a marker table containing time, label, and source information.
+
     markerTime = markerTime(:);
     markerLabels = markerLabels(:);
 
@@ -464,11 +544,14 @@ function MarkerTableOut = make_marker_table(markerTime, markerLabels, sourceName
         markerTime(1:nMarkers), ...
         markerLabels(1:nMarkers), ...
         markerSource, ...
-        'VariableNames', {'Time_seconds', 'Marker_Label', 'Marker_Source'} ...
+        'VariableNames', ...
+        {'Time_seconds', 'Marker_Label', 'Marker_Source'} ...
     );
 end
 
 function labels = get_xdf_channel_labels(stream)
+% Extract channel labels from the XDF stream description when available.
+
     try
         desc = stream.info.desc;
 
