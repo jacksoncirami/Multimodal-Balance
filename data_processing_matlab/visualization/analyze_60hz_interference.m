@@ -27,7 +27,9 @@ clc;
 
 %% User Settings
 
-eegChannel = 3;
+% Adjust the channel numbers and moving-window settings for the recording
+% being analyzed.
+eegChannel = 1;
 emgChannel = 1;
 
 windowSeconds = 2;
