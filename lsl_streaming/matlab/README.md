@@ -39,6 +39,7 @@ workflow included in this repository.
 
 | Component | Version |
 |---|---|
+| Windows | Windows 11 |
 | MATLAB | |
 | liblsl-Matlab | |
 | LabRecorder | |
