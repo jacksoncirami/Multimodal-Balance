@@ -66,7 +66,7 @@ before the bridge can be compiled or executed.
 | Visual Studio | |
 | Bertec SDK | |
 | .NET Framework / Runtime | |
-| liblsl | |
+| liblsl-Csharp | |
 | LabRecorder | |
 
 ---
