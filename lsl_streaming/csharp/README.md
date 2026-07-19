@@ -50,6 +50,7 @@ before the bridge can be compiled or executed.
 - Bertec SDK
 - `BertecDeviceNET`
 - liblsl-Csharp
+- `lsl.cs`
 - `lsl.dll`
 - Lab Streaming Layer (LSL)
 - LabRecorder
@@ -82,6 +83,14 @@ The bridge expects the following Bertec SDK channels to be available:
 - FZ
 - MX
 - MY
+
+In addition to the bridge source file, the Visual Studio project must include
+the LSL C# wrapper file (`LSL.cs`). The native `lsl.dll` must also be
+available to the compiled application (typically in the build output
+directory).
+
+The bridge also requires a project reference to `BertecDeviceNET` and the
+appropriate Bertec SDK libraries installed on the system.
 
 The default LSL stream properties are:
 
