@@ -1,54 +1,75 @@
 # Delsys Trigno EMG to LSL Bridge
 
-This folder contains the Python bridge used to acquire enabled Delsys Trigno
-EMG channels through the manufacturer-provided Delsys API and broadcast the
-data through Lab Streaming Layer (LSL).
+This folder contains the Python bridge used to stream Delsys Trigno EMG data
+to Lab Streaming Layer (LSL) using the manufacturer-provided Delsys Python
+API.
 
-## Included Script
+The included bridge automatically:
 
-- `delsysapi_lsl_bridge.py`
+- Connects to a Delsys Trigno system
+- Validates the connected base station using an authorized key and license
+- Detects connected sensors
+- Identifies enabled EMG channels
+- Creates an LSL stream named `Delsys_Trigno_EMG`
+- Continuously broadcasts synchronized EMG data through LSL
+- Stops and resets the Delsys acquisition pipeline when the user exits the
+  program
 
-The script:
+This bridge was developed and tested as part of the multimodal EEG–EMG–force
+plate synchronization pipeline included in this repository.
 
-1. Connects to the Delsys Trigno system through the Delsys Python API.
-2. Validates the connected base station using an authorized Delsys key and
-   license.
-3. Scans for available sensors.
-4. Identifies enabled EMG channels.
-5. Creates an LSL stream named `Delsys_Trigno_EMG`.
-6. Continuously forwards acquired EMG samples to LSL.
-7. Stops and resets the Delsys acquisition pipeline when the user presses
-   `Ctrl+C`.
+---
 
-## Important Limitation
+## Included Files
 
-The Python script in this repository is not a standalone Delsys application.
+| File | Description |
+|------|-------------|
+| `delsysapi_lsl_bridge.py` | Streams enabled Delsys Trigno EMG channels to Lab Streaming Layer. |
 
-It depends on manufacturer-provided Delsys API files, assemblies, packages,
-and credentials that are not included in this repository. Future users must
-obtain authorized access to those materials from Delsys.
+---
+
+## Important Notice
+
+This repository contains **only the custom LSL bridge** developed for this
+project.
+
+It does **not** include proprietary Delsys software components such as:
+
+- Delsys Python Example Applications
+- Aero and AeroPy packages
+- Delsys API assemblies
+- License files
+- Authorization keys
+- Other proprietary Delsys resources
+
+These components must be obtained directly from Delsys and configured locally
+before the bridge can be used.
+
+---
 
 ## Requirements
 
 The tested workflow requires:
 
 - Windows
-- A compatible Python installation
-- A compatible .NET runtime
-- The Delsys Trigno system and required Delsys software
-- The Delsys Python Example Applications files
-- The Delsys `Aero` and `AeroPy` Python packages
-- The Delsys API assembly
-- A valid Delsys key and license
+- Python
+- Compatible .NET runtime
+- Delsys Trigno hardware
+- Delsys Python Example Applications
+- Aero and AeroPy packages
+- Delsys API assemblies
+- Valid Delsys key and license
 - NumPy
-- pylsl
 - pythonnet
-- LabRecorder or another compatible LSL recording application
+- pylsl
+- LabRecorder (or another LSL-compatible recorder)
+
+---
 
 ## Tested Software Versions
 
-| Component | Tested version |
-|---|---|
+| Component | Tested Version |
+|------------|----------------|
 | Windows | UPDATE WITH TESTED VERSION |
 | Python | UPDATE WITH TESTED VERSION |
 | Delsys API / Example Applications | UPDATE WITH TESTED VERSION |
@@ -59,14 +80,15 @@ The tested workflow requires:
 | .NET runtime | UPDATE WITH TESTED VERSION |
 | LabRecorder | UPDATE WITH TESTED VERSION |
 
-## Required Delsys Folder Structure
+---
 
-The bridge was designed to run from the Python directory of the
-manufacturer-provided Delsys Example Applications package, or from another
-directory containing the same required structure.
+## Folder Structure
 
-The working directory must contain the Delsys packages and resource files
-required by the following imports and assembly reference:
+The bridge is designed to run from the Python directory of the
+manufacturer-provided Delsys Example Applications package (or another
+environment containing the same required folder structure).
+
+The working directory must provide the packages and resources referenced by:
 
 ```python
 from Aero import AeroPy
