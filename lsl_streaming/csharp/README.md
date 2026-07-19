@@ -52,7 +52,7 @@ before the bridge can be compiled or executed.
 - liblsl-Csharp
 - `lsl.dll`
 - Lab Streaming Layer (LSL)
-- LabRecorder (used for validation)
+- LabRecorder
 
 ---
 
