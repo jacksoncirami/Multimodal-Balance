@@ -49,7 +49,7 @@ before the bridge can be compiled or executed.
 - Microsoft Visual Studio
 - Bertec SDK
 - `BertecDeviceNET`
-- LSL C# library (`LSL.cs`)
+- liblsl-Csharp
 - `lsl.dll`
 - Lab Streaming Layer (LSL)
 - LabRecorder (used for validation)
