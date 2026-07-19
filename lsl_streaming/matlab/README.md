@@ -39,9 +39,9 @@ workflow included in this repository.
 
 | Component | Version |
 |---|---|
-| MATLAB | UPDATE WITH TESTED VERSION |
-| liblsl-Matlab | UPDATE WITH TESTED VERSION |
-| LabRecorder | UPDATE WITH TESTED VERSION |
+| MATLAB | |
+| liblsl-Matlab | |
+| LabRecorder | |
 
 ---
 
