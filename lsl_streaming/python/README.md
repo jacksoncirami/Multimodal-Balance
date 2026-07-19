@@ -47,7 +47,7 @@ Delsys installation.
 - NumPy
 - pythonnet
 - pylsl
-- LabRecorder (used for validation)
+- LabRecorder
 
 ---
 
@@ -55,7 +55,7 @@ Delsys installation.
 
 | Component | Version |
 |---|---|
-| Windows | |
+| Windows | Windows 11 |
 | Python | |
 | Delsys API | |
 | Delsys software | |
