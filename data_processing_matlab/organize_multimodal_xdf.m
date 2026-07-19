@@ -103,7 +103,7 @@ eegIdx = input('EEG stream number: ');
 emgIdx = input('EMG stream number: ');
 forceIdx = input('Force plate stream number: ');
 
-marker1Idx = input('Marker stream 1 number, usually GuiMarkers ([] if not recorded): ');
+marker1Idx = input('Marker stream 1 number, usually TaskMarkers ([] if not recorded): ');
 marker2Idx = input('Marker stream 2 number, usually MVCMarkers ([] if not recorded): ');
 
 check_required_stream_index(eegIdx, length(streams), 'EEG');
