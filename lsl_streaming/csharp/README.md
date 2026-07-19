@@ -60,7 +60,7 @@ before the bridge can be compiled or executed.
 
 | Component | Version |
 |---|---|
-| Windows | |
+| Windows | Windows 11 |
 | Visual Studio | |
 | Bertec SDK | |
 | .NET Framework / Runtime | |
