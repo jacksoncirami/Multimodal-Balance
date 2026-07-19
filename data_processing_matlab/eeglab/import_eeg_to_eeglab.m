@@ -19,7 +19,7 @@
 % Requirements:
 %   - MATLAB
 %   - EEGLAB available on the MATLAB path
-%   - load_xdf available on the MATLAB path
+%   - xdf-Matlab, including load_xdf, available on the MATLAB path
 %
 % Usage:
 %   Run the script and select the organized MAT file followed by its
@@ -74,7 +74,8 @@ fprintf('\nSelected original XDF file:\n%s\n', xdfFile);
 if exist('load_xdf', 'file') ~= 2
     error([ ...
         'The load_xdf function was not found on the MATLAB path. ' ...
-        'Add the XDF importer or liblsl-MATLAB folder to the MATLAB path.']);
+        'Download xdf-Matlab and add its folder and subfolders to ' ...
+        'the MATLAB path before running this script.']);
 end
 
 [streams, ~] = load_xdf(xdfFile);
