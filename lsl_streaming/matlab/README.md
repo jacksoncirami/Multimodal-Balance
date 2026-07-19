@@ -31,7 +31,7 @@ workflow included in this repository.
 - MATLAB
 - liblsl-Matlab
 - Lab Streaming Layer (LSL)
-- LabRecorder (used for validation and synchronized recording)
+- LabRecorder
 
 ---
 
