@@ -1,6 +1,7 @@
 %% task_marker_gui
-% Creates a MATLAB graphical interface for sending task and artifact
-% markers to Lab Streaming Layer during multimodal data collection.
+% Creates a MATLAB graphical interface for broadcasting task and artifact
+% markers through Lab Streaming Layer (LSL) during multimodal data
+% collection.
 %
 % This script creates the task-related marker stream:
 %   Name:      TaskMarkers
