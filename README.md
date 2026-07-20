@@ -1,6 +1,6 @@
 # Multimodal Data Acquisition Pipeline
 
-An open-source, cross-language workflow for acquiring, synchronizing, organizing, and inspecting multimodal physiological and biomechanical data from EEG, EMG, force-plate, and experimental event-marker streams.
+A cross-language workflow for acquiring, synchronizing, organizing, and inspecting multimodal physiological and biomechanical data from EEG, EMG, force-plate, and experimental event-marker streams.
 
 The system integrates manufacturer-specific acquisition tools with [Lab Streaming Layer (LSL)](https://labstreaminglayer.org/) so that all streams can be recorded together in LabRecorder as a single XDF session. MATLAB scripts then organize the recording, preserve stream timing and metadata, prepare EEG data for EEGLAB, and support multimodal visualization and signal-quality analysis.
 
