@@ -54,8 +54,8 @@ individual script documentation for specific requirements.
 
 | Component | Version |
 |---|---|
-| MATLAB | |
-| EEGLAB | |
+| MATLAB | R2026a (26.1.0.3251617) |
+| EEGLAB | 2026.0.0 |
 | xdf-Matlab | |
 
 ---
