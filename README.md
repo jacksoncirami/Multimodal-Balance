@@ -34,7 +34,7 @@ flowchart LR
 ## Repository Contents
 
 ```text
-Multimodal-Balance/
+Multimodal-Data-Acquisition/
 ├── lsl_streaming/
 │   ├── python/          Delsys Trigno EMG-to-LSL bridge
 │   ├── matlab/          Task and MVC event-marker interfaces
@@ -185,11 +185,11 @@ Developed during the 2026 Summer Undergraduate Research Experience under the men
 
 This project is licensed under the PolyForm Noncommercial License 1.0.0.
 
-This software may be used for academic, educational, research, and other non-commercial purposes in accordance with the LICENSE file included in this repository.
+The software may be used for academic, educational, research, and other non-commercial purposes in accordance with the LICENSE file included in this repository.
 
-Commercial use of this software requires a separate commercial license from the copyright holder.
+Commercial use—including incorporation into commercial software, products, consulting services, or other revenue-generating activities—requires a separate commercial license from the copyright holder.
 
 For commercial licensing inquiries, please contact:
 
-Jackson Cirami
+Jackson Cirami  
 <jackson.cirami@gmail.com>
