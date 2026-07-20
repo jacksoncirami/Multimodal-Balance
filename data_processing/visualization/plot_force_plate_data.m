@@ -30,7 +30,7 @@ showMarkerLabels = true;
 
 % true = normalize each channel for visualization
 % false = preserve signal amplitude after removing the channel median
-normalizeChannels = true;
+normalizeChannels = false;
 
 % Visible range around each channel baseline when amplitude is preserved.
 yScale = 100;
